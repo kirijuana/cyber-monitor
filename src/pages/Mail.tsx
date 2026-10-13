@@ -1,35 +1,43 @@
 export function Mail() {
   return (
-    <div className="p-8">
+    <div className="p-8 animate-fade-in">
       <div className="mb-8">
-        <h1 className="text-4xl font-bold mb-2 text-cyber-white">Почтовый сервер</h1>
-        <p className="text-cyber-gray">Мониторинг почтовой инфраструктуры</p>
+        <h1 className="text-4xl font-bold mb-2 text-white">Почтовый сервер</h1>
+        <p className="text-slate-400">Мониторинг почтовой инфраструктуры</p>
       </div>
 
-      <div className="bg-cyber-black/50 border border-cyber-red/20 rounded-xl p-12 text-center">
-        <div className="text-6xl mb-4">📧</div>
-        <h2 className="text-2xl font-bold mb-4 text-cyber-white">Раздел в разработке</h2>
-        <p className="text-cyber-gray mb-6">
+      <div className="card p-12 text-center">
+        <div className="text-7xl mb-6">📧</div>
+        <h2 className="text-3xl font-bold mb-4 text-white">Раздел в разработке</h2>
+        <p className="text-slate-400 mb-8 text-lg">
           Мониторинг почтового сервера будет включать:
         </p>
-        <ul className="text-left max-w-md mx-auto space-y-3 text-cyber-gray">
-          <li className="flex items-center gap-3">
-            <span className="text-cyber-red">•</span>
-            <span>Статус почтовых ящиков</span>
-          </li>
-          <li className="flex items-center gap-3">
-            <span className="text-cyber-red">•</span>
-            <span>Очереди сообщений</span>
-          </li>
-          <li className="flex items-center gap-3">
-            <span className="text-cyber-red">•</span>
-            <span>Статистика спама и вирусов</span>
-          </li>
-          <li className="flex items-center gap-3">
-            <span className="text-cyber-red">•</span>
-            <span>Мониторинг доставки писем</span>
-          </li>
-        </ul>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-2xl mx-auto">
+          <div className="glass p-4 rounded-xl text-left">
+            <div className="flex items-center gap-3">
+              <span className="text-2xl">📬</span>
+              <span className="text-white font-semibold">Статус почтовых ящиков</span>
+            </div>
+          </div>
+          <div className="glass p-4 rounded-xl text-left">
+            <div className="flex items-center gap-3">
+              <span className="text-2xl">📤</span>
+              <span className="text-white font-semibold">Очереди сообщений</span>
+            </div>
+          </div>
+          <div className="glass p-4 rounded-xl text-left">
+            <div className="flex items-center gap-3">
+              <span className="text-2xl">🛡️</span>
+              <span className="text-white font-semibold">Статистика спама</span>
+            </div>
+          </div>
+          <div className="glass p-4 rounded-xl text-left">
+            <div className="flex items-center gap-3">
+              <span className="text-2xl">✅</span>
+              <span className="text-white font-semibold">Доставка писем</span>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );

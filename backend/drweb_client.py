@@ -131,6 +131,22 @@ def fetch_drweb_data(client: DrWebClient):
     }
 
 
+def get_station_statistics(client: DrWebClient, station_id: str):
+    """Получает статистику угроз для конкретной станции"""
+    url = f"{client.base_url}/api/stations/statistics.ds"
+    params = {
+        "id": station_id,
+        "format": "json",
+    }
+    try:
+        response = requests.get(url, auth=client.auth, params=params, verify=client.verify_ssl, timeout=15)
+        response.raise_for_status()
+        return response.json()
+    except Exception as e:
+        logger.error(f"Ошибка Dr.Web (statistics {station_id}): {e}")
+        return None
+
+
 def fetch_station_details(client: DrWebClient, station_id: str):
     """Получает детальную информацию о станции и форматирует её"""
     info = client.get_station_info(station_id)
@@ -144,6 +160,20 @@ def fetch_station_details(client: DrWebClient, station_id: str):
         return None
     
     station = station_list[0]
+    
+    # Получаем статистику угроз
+    stats = get_station_statistics(client, station_id)
+    threats = []
+    if stats and "data" in stats:
+        # Парсим угрозы из статистики
+        infections = stats["data"].get("infections", [])
+        for infection in infections[:10]:  # Берём последние 10 угроз
+            threats.append({
+                "name": infection.get("name", "Unknown"),
+                "date": infection.get("date", 0),
+                "type": infection.get("type", "unknown"),
+                "count": infection.get("count", 1),
+            })
     
     # Извлекаем IP
     ip = extract_ip_from_addr(station.get("last_seen_addr", ""))
@@ -228,6 +258,7 @@ def fetch_station_details(client: DrWebClient, station_id: str):
         "state": station.get("state", 0),
         "created_time": station.get("created_time", 0),
         "first_login": station.get("firstlogin", 0),
+        "threats": threats,
     }
     
     return result

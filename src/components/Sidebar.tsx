@@ -10,10 +10,12 @@ const menuItems = [
 
 export function Sidebar() {
   return (
-    <aside className="w-64 bg-cyber-black/80 border-r border-cyber-red/20 flex flex-col">
-      <div className="p-6 border-b border-cyber-red/20">
-        <h1 className="text-2xl font-bold text-cyber-white">Кибер Стратегия</h1>
-        <p className="text-cyber-gray text-sm mt-1">Мониторинг инфраструктуры</p>
+    <aside className="w-64 glass border-r border-slate-700/50 flex flex-col">
+      <div className="p-6 border-b border-slate-700/50">
+        <h1 className="text-2xl font-bold bg-gradient-to-r from-indigo-400 to-purple-400 bg-clip-text text-transparent">
+          Cyber Monitor
+        </h1>
+        <p className="text-slate-400 text-sm mt-1">Мониторинг инфраструктуры</p>
       </div>
 
       <nav className="flex-1 p-4">
@@ -24,10 +26,10 @@ export function Sidebar() {
                 to={item.path}
                 end={item.path === '/'}
                 className={({ isActive }) =>
-                  `flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${
+                  `flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
                     isActive
-                      ? 'bg-cyber-red/20 text-cyber-white border-l-4 border-cyber-red'
-                      : 'text-cyber-gray hover:bg-cyber-black/50 hover:text-cyber-white'
+                      ? 'gradient-primary text-white shadow-lg shadow-indigo-500/30'
+                      : 'text-slate-400 hover:bg-slate-800/50 hover:text-white'
                   }`
                 }
               >
@@ -39,10 +41,10 @@ export function Sidebar() {
         </ul>
       </nav>
 
-      <div className="p-4 border-t border-cyber-red/20">
+      <div className="p-4 border-t border-slate-700/50">
         <div className="flex items-center gap-3 px-4 py-2">
-          <div className="w-3 h-3 rounded-full bg-green-500 animate-pulse"></div>
-          <span className="text-cyber-gray text-sm">Система активна</span>
+          <div className="w-3 h-3 rounded-full bg-emerald-500 animate-pulse"></div>
+          <span className="text-slate-400 text-sm">Система активна</span>
         </div>
       </div>
     </aside>
