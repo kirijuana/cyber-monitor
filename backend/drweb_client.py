@@ -137,12 +137,14 @@ def get_station_statistics(client: DrWebClient, station_id: str):
     params = {
         "id": station_id,
         "format": "json",
+        "top-viruses": "yes",
+        "virtop": "50",  # Получаем до 50 вирусов
     }
     try:
         response = requests.get(url, auth=client.auth, params=params, verify=client.verify_ssl, timeout=15)
         response.raise_for_status()
         data = response.json()
-        logger.info(f"📊 Статистика станции {station_id}: {data}")
+        logger.info(f"📊 Статистика станции {station_id}: получено")
         return data
     except Exception as e:
         logger.error(f"Ошибка Dr.Web (statistics {station_id}): {e}")
@@ -166,33 +168,52 @@ def fetch_station_details(client: DrWebClient, station_id: str):
     # Получаем статистику угроз
     stats = get_station_statistics(client, station_id)
     threats = []
+    
     if stats and "data" in stats:
-        # Пробуем разные форматы ответа API
-        infections = stats["data"].get("infections", [])
+        # API возвращает данные в data.stations.list[0]
+        stations_list = stats["data"].get("stations", {}).get("list", [])
         
-        # Если infections пустой, пробуем другие поля
-        if not infections:
-            infections = stats["data"].get("threats", [])
-        if not infections:
-            infections = stats["data"].get("events", [])
-        if not infections:
-            # Пробуем достать из вложенных структур
-            for key in stats["data"]:
-                if isinstance(stats["data"][key], list) and len(stats["data"][key]) > 0:
-                    if isinstance(stats["data"][key][0], dict):
-                        infections = stats["data"][key]
-                        break
-        
-        logger.info(f"🔍 Найдено угроз для станции {station_id}: {len(infections)}")
-        
-        for infection in infections[:20]:  # Берём последние 20 угроз
-            if isinstance(infection, dict):
-                threats.append({
-                    "name": infection.get("name", infection.get("threat_name", "Unknown")),
-                    "date": infection.get("date", infection.get("time", infection.get("timestamp", 0))),
-                    "type": infection.get("type", infection.get("threat_type", infection.get("category", "unknown"))),
-                    "count": infection.get("count", infection.get("quantity", 1)),
-                })
+        if stations_list:
+            station_stats = stations_list[0]
+            
+            # Получаем информацию о вирусах
+            viruses_info = station_stats.get("viruses_info", {})
+            
+            logger.info(f"🔍 Найдено угроз для станции {station_id}: {len(viruses_info)}")
+            
+            # Парсим вирусы из viruses_info
+            for virus_name, virus_data in viruses_info.items():
+                if isinstance(virus_data, dict):
+                    # Определяем тип вируса по названию
+                    virus_type = "unknown"
+                    name_lower = virus_name.lower()
+                    if "trojan" in name_lower:
+                        virus_type = "trojan"
+                    elif "virus" in name_lower or "win32" in name_lower:
+                        virus_type = "virus"
+                    elif "worm" in name_lower:
+                        virus_type = "worm"
+                    elif "adware" in name_lower:
+                        virus_type = "adware"
+                    elif "spyware" in name_lower:
+                        virus_type = "spyware"
+                    elif "riskware" in name_lower:
+                        virus_type = "riskware"
+                    elif "dialer" in name_lower:
+                        virus_type = "dialer"
+                    elif "joke" in name_lower:
+                        virus_type = "joke"
+                    elif "exploit" in name_lower:
+                        virus_type = "exploit"
+                    
+                    threats.append({
+                        "name": virus_name,
+                        "date": 0,  # В API нет даты для каждого вируса
+                        "type": virus_type,
+                        "count": virus_data.get("count", 1),
+                        "originator": virus_data.get("originator", 0),
+                        "treatment": virus_data.get("treatment", 0),
+                    })
     
     # Извлекаем IP
     ip = extract_ip_from_addr(station.get("last_seen_addr", ""))
