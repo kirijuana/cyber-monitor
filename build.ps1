@@ -1,37 +1,36 @@
 # Build script for Cyber Monitor
-# Запусти этот скрипт чтобы собрать React приложение
 
-Write-Host "🚀 Сборка Cyber Monitor..." -ForegroundColor Green
+Write-Host "Building Cyber Monitor..." -ForegroundColor Green
 
-# Проверяем что Node.js установлен
+# Check Node.js
 try {
     $nodeVersion = node --version
-    Write-Host "✅ Node.js найден: $nodeVersion" -ForegroundColor Green
+    Write-Host "Node.js found: $nodeVersion" -ForegroundColor Green
 } catch {
-    Write-Host "❌ Node.js не найден! Установи с https://nodejs.org/" -ForegroundColor Red
+    Write-Host "ERROR: Node.js not found! Install from https://nodejs.org/" -ForegroundColor Red
     exit 1
 }
 
-# Устанавливаем зависимости
-Write-Host "`n📦 Установка зависимостей..." -ForegroundColor Yellow
+# Install dependencies
+Write-Host "`nInstalling dependencies..." -ForegroundColor Yellow
 npm install
 
 if ($LASTEXITCODE -ne 0) {
-    Write-Host "❌ Ошибка установки зависимостей!" -ForegroundColor Red
+    Write-Host "ERROR: Failed to install dependencies!" -ForegroundColor Red
     exit 1
 }
 
-# Собираем проект
-Write-Host "`n🔨 Сборка проекта..." -ForegroundColor Yellow
+# Build project
+Write-Host "`nBuilding project..." -ForegroundColor Yellow
 npm run build
 
 if ($LASTEXITCODE -ne 0) {
-    Write-Host "❌ Ошибка сборки!" -ForegroundColor Red
+    Write-Host "ERROR: Build failed!" -ForegroundColor Red
     exit 1
 }
 
-Write-Host "`n✅ Готово! Файлы собраны в frontend/" -ForegroundColor Green
-Write-Host "`n🎯 Теперь запусти бэкенд:" -ForegroundColor Cyan
+Write-Host "`nSUCCESS! Files built in frontend/" -ForegroundColor Green
+Write-Host "`nNow run backend:" -ForegroundColor Cyan
 Write-Host "   cd backend" -ForegroundColor White
 Write-Host "   python main.py" -ForegroundColor White
-Write-Host "`n🌐 Открой браузер: http://localhost:8001" -ForegroundColor Cyan
+Write-Host "`nOpen browser: http://localhost:8001" -ForegroundColor Cyan
