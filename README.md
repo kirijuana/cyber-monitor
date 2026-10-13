@@ -1,6 +1,6 @@
-# 🛡️ Кибер Стратегия — Мониторинг безопасности
+# 🛡️ Кибер Стратегия — Платформа мониторинга инфраструктуры
 
-Система мониторинга инфраструктуры с интеграцией Dr.Web Security Space.
+Модульная платформа мониторинга с интеграцией различных сервисов: Dr.Web, Bitrix24, почта и другие.
 
 ## 📁 Структура проекта
 
@@ -10,211 +10,149 @@ cyber-monitor/
 │   ├── main.py              # FastAPI сервер
 │   ├── drweb_client.py      # Клиент для Dr.Web API
 │   └── requirements.txt     # Python зависимости
-├── frontend/
-│   └── index.html           # React приложение (CDN)
+├── src/                     # React исходники
+│   ├── App.tsx              # Роутер
+│   ├── pages/
+│   │   ├── Dashboard.tsx    # Главная — сводка по сервисам
+│   │   ├── DrWeb.tsx        # Детальный мониторинг Dr.Web
+│   │   ├── Bitrix24.tsx     # CRM (в разработке)
+│   │   ├── Mail.tsx         # Почта (в разработке)
+│   │   └── Services.tsx     # Статус инфраструктуры
+│   └── components/
+│       └── Sidebar.tsx      # Навигация
+├── frontend/                # Собранный фронтенд (npm run build)
+├── build.ps1                # Скрипт сборки
 └── README.md
 ```
 
 ## 🚀 Быстрый старт
 
-### 1. Клонирование из GitHub
+### 1. Клонирование
 
 ```bash
 git clone https://github.com/kirijuana/cyber-monitor.git
 cd cyber-monitor
 ```
 
-### 2. Установка Python зависимостей
+### 2. Сборка фронтенда
+
+```powershell
+# Windows
+.\build.ps1
+
+# Или вручную
+npm install
+npm run build
+```
+
+### 3. Установка Python зависимостей
 
 ```bash
 cd backend
 pip install -r requirements.txt
 ```
 
-### 3. Настройка Dr.Web
+### 4. Настройка Dr.Web
 
 Открой `backend/main.py` и заполни свои данные:
 
 ```python
-DRWEB_URL = "https://10.4.0.1:9081"  # IP/порт Dr.Web сервера
-DRWEB_USER = "admin"                   # Логин
-DRWEB_PASS = "password"                # Пароль
-DRWEB_VERIFY_SSL = False               # Проверка SSL (False для самоподписанных)
+DRWEB_URL = "https://10.4.0.1:9081"
+DRWEB_USER = "admin"
+DRWEB_PASS = "password"
 ```
 
-### 4. Запуск сервера
+### 5. Запуск
 
 ```bash
 cd backend
 python main.py
 ```
 
-### 5. Открыть в браузере
+Открой: **http://localhost:8001**
 
-Перейди на: **http://localhost:8001**
+## 📊 Страницы
 
-## ✨ Функционал
+### 🏠 Дашборд (`/`)
+Сводная информация по всем сервисам:
+- Карточки сервисов с статусом
+- Ключевые метрики
+- Быстрый переход к деталям
 
-### 📊 Дашборд
+### 🛡️ Dr.Web (`/drweb`)
+Детальный мониторинг антивирусной защиты:
 - Статистика защищённых устройств
-- Количество устройств требующих внимания
-- Критические устройства
-- Заблокированные угрозы
+- Список всех станций
+- Раскрывающиеся карточки с деталями:
+  - Пользователь станции
+  - Обновление баз
+  - Версия движка
+  - Группы и компоненты
+  - Вирусные базы
 
-### 🖥️ Устройства
-- Список всех устройств из Dr.Web
-- Статус каждого устройства (защищено/внимание/критично)
-- IP адрес (извлекается из last_seen_addr)
-- **Раскрывающиеся карточки** с детальной информацией (подгружается по API):
-  - IP адрес
-  - Операционная система
-  - Версия движка Dr.Web
-  - Последнее подключение
-  - **Пользователь станции** (из running_components)
-  - **Последнее обновление баз** (время обновления вирусных баз)
-  - Отдел и организация
-  - Город и местоположение
-  - Родительская группа
-  - Все группы устройства
-  - Запущенные компоненты (с указанием пользователей)
-  - Количество вирусных баз
-  - Общее количество записей вирусов
-  - Дата первого входа
-  - Дата создания станции
-  - Описание станции
+### 💼 Bitrix24 (`/bitrix24`)
+*В разработке* — мониторинг CRM и бизнес-процессов
 
-### 🔧 Сервисы
-- Статус инфраструктуры
-- Uptime каждого сервиса
+### 📧 Почта (`/mail`)
+*В разработке* — мониторинг почтовой инфраструктуры
 
-### 🔄 Автоматическое обновление
-- Опрос Dr.Web каждые 30 секунд
-- Обновление интерфейса каждые 10 секунд
-- Индикатор подключения
+### ⚙️ Сервисы (`/services`)
+Статус всех компонентов инфраструктуры
 
 ## 🛠️ Технологии
+
+### Frontend
+- **React 18** — UI библиотека
+- **React Router** — навигация
+- **Tailwind CSS** — стилизация
+- **TypeScript** — типизация
+- **Vite** — сборщик
 
 ### Backend
 - **FastAPI** — веб-фреймворк
 - **APScheduler** — фоновые задачи
-- **Requests** — HTTP клиент для Dr.Web API
+- **Requests** — HTTP клиент для API
 
-### Frontend
-- **React 18** (CDN) — UI библиотека
-- **Babel** — JSX компиляция в браузере
-- **CSS** — кастомные стили без фреймворков
+## 🔌 API Endpoints
 
-## 📝 Настройка для продакшена
+| Endpoint | Описание |
+|----------|----------|
+| `GET /` | Главная страница (SPA) |
+| `GET /api/dashboard` | Сводка по всем сервисам |
+| `GET /api/status` | Данные Dr.Web |
+| `GET /api/station/{id}` | Детали конкретной станции |
 
-### Изменение порта
+## 📝 Добавление нового сервиса
 
-В `backend/main.py`:
-```python
-uvicorn.run(app, host="0.0.0.0", port=8001)  # Измени port
-```
-
-### HTTPS
-
-Для HTTPS используй reverse proxy (Nginx, Caddy):
-
-```nginx
-server {
-    listen 443 ssl;
-    server_name monitor.example.com;
-    
-    ssl_certificate /path/to/cert.pem;
-    ssl_certificate_key /path/to/key.pem;
-    
-    location / {
-        proxy_pass http://localhost:8001;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-    }
-}
-```
-
-### Автозапуск (systemd)
-
-Создай `/etc/systemd/system/cyber-monitor.service`:
-
-```ini
-[Unit]
-Description=Cyber Monitor
-After=network.target
-
-[Service]
-Type=simple
-User=your_user
-WorkingDirectory=/path/to/cyber-monitor/backend
-ExecStart=/usr/bin/python3 main.py
-Restart=always
-
-[Install]
-WantedBy=multi-user.target
-```
-
-Запусти:
-```bash
-sudo systemctl enable cyber-monitor
-sudo systemctl start cyber-monitor
-```
+1. Создай клиент в `backend/` (например `bitrix_client.py`)
+2. Добавь эндпоинт в `main.py`
+3. Создай страницу в `src/pages/`
+4. Добавь маршрут в `src/App.tsx`
+5. Добавь пункт меню в `src/components/Sidebar.tsx`
+6. Обнови `/api/dashboard` для отображения на главной
 
 ## 🔒 Безопасность
 
 ⚠️ **Важно:**
 - Не коммить реальные пароли в Git
-- Используй переменные окружения для чувствительных данных
-- Настрой firewall для ограничения доступа
-- Используй HTTPS в продакшене
-
-### Переменные окружения
-
-Создай `.env` файл в `backend/`:
-
-```env
-DRWEB_URL=https://10.4.0.1:9081
-DRWEB_USER=admin
-DRWEB_PASS=your_password
-```
-
-Обнови `main.py`:
-```python
-import os
-from dotenv import load_dotenv
-
-load_dotenv()
-
-DRWEB_URL = os.getenv("DRWEB_URL")
-DRWEB_USER = os.getenv("DRWEB_USER")
-DRWEB_PASS = os.getenv("DRWEB_PASS")
-```
+- Используй переменные окружения
+- Настрой HTTPS в продакшене
 
 ## 🐛 Troubleshooting
 
-### Не подключается к Dr.Web
-- Проверь доступность сервера: `ping 10.4.0.1`
-- Проверь порт: `telnet 10.4.0.1 9081`
-- Проверь логин/пароль в настройках
-
 ### Белый экран
-- Открой DevTools (F12) → Console
-- Проверь ошибки JavaScript
-- Убедись что есть интернет (для загрузки React с CDN)
+- Запусти `npm run build` чтобы собрать фронтенд
+- Проверь что файлы есть в `frontend/`
 
 ### API не отвечает
-- Проверь что бэкенд запущен: `python main.py`
-- Проверь логи в консоли
-- Попробуй напрямую: `curl http://localhost:8001/api/status`
+- Проверь что бэкенд запущен
+- Проверь настройки Dr.Web в `main.py`
 
-## 📄 Лицензия
-
-MIT
-
-## 👨‍💻 Автор
-
-Кибер Стратегия — Мониторинг безопасности
+### Ошибки сборки
+- Удали `node_modules/` и выполни `npm install` заново
+- Проверь версию Node.js (рекомендуется 18+)
 
 ---
 
-**Версия:** 1.0.0  
-**Последнее обновление:** 2026
+**Версия:** 2.0.0  
+**Архитектура:** Модульная платформа мониторинга

@@ -27,8 +27,12 @@ Thumbs.db
 # Logs
 *.log
 
-# Node (если будет использоваться)
+# Node
 node_modules/
-dist/
+
+# Frontend build (раскомментируй если не хочешь коммитить собранные файлы)
+# frontend/assets/
+# frontend/index.html
 .next/
+dist/
 build/
