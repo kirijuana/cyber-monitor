@@ -141,7 +141,9 @@ def get_station_statistics(client: DrWebClient, station_id: str):
     try:
         response = requests.get(url, auth=client.auth, params=params, verify=client.verify_ssl, timeout=15)
         response.raise_for_status()
-        return response.json()
+        data = response.json()
+        logger.info(f"📊 Статистика станции {station_id}: {data}")
+        return data
     except Exception as e:
         logger.error(f"Ошибка Dr.Web (statistics {station_id}): {e}")
         return None
@@ -165,15 +167,32 @@ def fetch_station_details(client: DrWebClient, station_id: str):
     stats = get_station_statistics(client, station_id)
     threats = []
     if stats and "data" in stats:
-        # Парсим угрозы из статистики
+        # Пробуем разные форматы ответа API
         infections = stats["data"].get("infections", [])
-        for infection in infections[:10]:  # Берём последние 10 угроз
-            threats.append({
-                "name": infection.get("name", "Unknown"),
-                "date": infection.get("date", 0),
-                "type": infection.get("type", "unknown"),
-                "count": infection.get("count", 1),
-            })
+        
+        # Если infections пустой, пробуем другие поля
+        if not infections:
+            infections = stats["data"].get("threats", [])
+        if not infections:
+            infections = stats["data"].get("events", [])
+        if not infections:
+            # Пробуем достать из вложенных структур
+            for key in stats["data"]:
+                if isinstance(stats["data"][key], list) and len(stats["data"][key]) > 0:
+                    if isinstance(stats["data"][key][0], dict):
+                        infections = stats["data"][key]
+                        break
+        
+        logger.info(f"🔍 Найдено угроз для станции {station_id}: {len(infections)}")
+        
+        for infection in infections[:20]:  # Берём последние 20 угроз
+            if isinstance(infection, dict):
+                threats.append({
+                    "name": infection.get("name", infection.get("threat_name", "Unknown")),
+                    "date": infection.get("date", infection.get("time", infection.get("timestamp", 0))),
+                    "type": infection.get("type", infection.get("threat_type", infection.get("category", "unknown"))),
+                    "count": infection.get("count", infection.get("quantity", 1)),
+                })
     
     # Извлекаем IP
     ip = extract_ip_from_addr(station.get("last_seen_addr", ""))
