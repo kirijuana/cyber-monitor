@@ -517,37 +517,52 @@
                                         <div className="details-grid-inner">
                                             <div className="detail-item">
                                                 <div className="detail-label">IP Адрес</div>
-                                                <div className="detail-value">{device.ip || 'N/A'}</div>
+                                                <div className="detail-value">{device.ip && device.ip !== 'N/A' ? device.ip : '—'}</div>
                                             </div>
                                             <div className="detail-item">
                                                 <div className="detail-label">MAC Адрес</div>
-                                                <div className="detail-value">{device.mac || 'N/A'}</div>
+                                                <div className="detail-value">{device.mac && device.mac !== 'N/A' ? device.mac : '—'}</div>
                                             </div>
                                             <div className="detail-item">
                                                 <div className="detail-label">Версия антивируса</div>
-                                                <div className="detail-value">{device.antivirus_version || 'N/A'}</div>
+                                                <div className="detail-value">{device.antivirus_version && device.antivirus_version !== 'N/A' ? device.antivirus_version : '—'}</div>
                                             </div>
                                             <div className="detail-item">
                                                 <div className="detail-label">Последнее сканирование</div>
-                                                <div className="detail-value">{formatTimestamp(device.last_scan)}</div>
+                                                <div className="detail-value">{device.last_scan ? formatTimestamp(device.last_scan) : '—'}</div>
                                             </div>
                                             <div className="detail-item">
                                                 <div className="detail-label">Заблокировано угроз</div>
-                                                <div className="detail-value">{device.threats_blocked || 0}</div>
+                                                <div className="detail-value">{device.threats_blocked !== undefined ? device.threats_blocked : '—'}</div>
                                             </div>
                                             <div className="detail-item">
                                                 <div className="detail-label">Пользователь</div>
-                                                <div className="detail-value">{device.user || 'N/A'}</div>
+                                                <div className="detail-value">{device.user && device.user !== 'N/A' ? device.user : '—'}</div>
                                             </div>
                                             <div className="detail-item">
                                                 <div className="detail-label">Группа</div>
-                                                <div className="detail-value">{device.group || 'N/A'}</div>
+                                                <div className="detail-value">{device.group && device.group !== 'N/A' ? device.group : '—'}</div>
                                             </div>
                                             <div className="detail-item">
                                                 <div className="detail-label">Время работы</div>
-                                                <div className="detail-value">{device.uptime || 'N/A'}</div>
+                                                <div className="detail-value">{device.uptime && device.uptime !== 'N/A' ? device.uptime : '—'}</div>
                                             </div>
                                         </div>
+                                        {device.raw_data && Object.keys(device.raw_data).length > 0 && (
+                                            <div style={{ marginTop: '15px', padding: '10px', background: 'rgba(239, 35, 60, 0.05)', borderRadius: '6px', border: '1px solid rgba(239, 35, 60, 0.2)' }}>
+                                                <div style={{ fontSize: '11px', color: '#EF233C', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '8px', fontFamily: 'Montserrat, sans-serif' }}>
+                                                    🔍 Все данные от Dr.Web API:
+                                                </div>
+                                                <div style={{ fontSize: '12px', fontFamily: 'monospace', color: '#F5F5F5', lineHeight: '1.6' }}>
+                                                    {Object.entries(device.raw_data).map(([key, value]) => (
+                                                        <div key={key} style={{ marginBottom: '4px' }}>
+                                                            <span style={{ color: '#6B7280' }}>{key}:</span>{' '}
+                                                            <span style={{ color: '#10B981' }}>{String(value)}</span>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
                                 )}
                             </div>
@@ -599,10 +614,14 @@
                         const response = await fetch('/api/status');
                         if (!response.ok) throw new Error(`HTTP ${response.status}`);
                         const json = await response.json();
+                        console.log('📦 Получены данные от API:', json);
+                        if (json.devices && json.devices.length > 0) {
+                            console.log('🖥️ Первое устройство:', json.devices[0]);
+                        }
                         setData(json);
                         setIsConnected(true);
                     } catch (error) {
-                        console.warn('⚠️ API недоступен, используем демо-данные');
+                        console.warn('⚠️ API недоступен, используем демо-данные:', error);
                         setIsConnected(false);
                     }
                 };

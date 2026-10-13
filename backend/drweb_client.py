@@ -58,25 +58,32 @@ def fetch_drweb_data(client: DrWebClient):
     devices_list = []
 
     if details and "data" in details and "stations" in details["data"]:
+        # Логируем первое устройство для отладки
+        first_state = next(iter(details["data"]["stations"].items()), None)
+        if first_state and first_state[1]:
+            logger.info(f"🔍 Пример данных станции от Dr.Web: {first_state[1][0]}")
+        
         for state, stations in details["data"]["stations"].items():
             for station in stations:
                 ui_status = "protected" if state == "online" else (
                     "warning" if state == "with_update_errors" else "critical")
                 
                 # Расширенные данные для каждого устройства
+                # Dr.Web API может возвращать разные поля, используем безопасное извлечение
                 devices_list.append({
-                    "name": station.get("name", "Unknown"),
+                    "name": station.get("hostname", station.get("name", "Unknown")),
                     "status": ui_status,
-                    "last_update": station.get("last_seen_time", 0),
-                    "os": station.get("os_name", "Unknown OS"),
-                    "ip": station.get("ip", "N/A"),
-                    "mac": station.get("mac", "N/A"),
-                    "antivirus_version": station.get("engine_version", "N/A"),
-                    "last_scan": station.get("last_scan_time", 0),
-                    "threats_blocked": station.get("threats_count", 0),
-                    "user": station.get("user_name", "N/A"),
-                    "group": station.get("group_name", "N/A"),
+                    "last_update": station.get("last_agent_report", station.get("last_seen_time", 0)),
+                    "os": station.get("os_name", station.get("platform", "Unknown OS")),
+                    "ip": station.get("ip", station.get("ip_address", "N/A")),
+                    "mac": station.get("mac", station.get("mac_address", "N/A")),
+                    "antivirus_version": station.get("agent_version", station.get("engine_version", "N/A")),
+                    "last_scan": station.get("last_scan_time", station.get("last_scan", 0)),
+                    "threats_blocked": station.get("threats_count", station.get("infections_count", 0)),
+                    "user": station.get("current_user", station.get("user_name", "N/A")),
+                    "group": station.get("group", station.get("group_name", "N/A")),
                     "uptime": station.get("uptime", "N/A"),
+                    "raw_data": station,  # Сохраняем все сырые данные для отладки
                 })
 
     logger.info(f"✅ Данные обновлены: {online_count} в сети, {warning_count} с ошибками, {critical_count} критических")
