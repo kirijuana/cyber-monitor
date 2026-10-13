@@ -42,7 +42,7 @@
             top: 0; left: 0;
             width: 100%; height: 100%;
             opacity: 0.03;
-            background-image: url("image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='60' viewBox='0 0 60 60'%3E%3Cpolygon points='30,5 55,17.5 55,42.5 30,55 5,42.5 5,17.5' fill='none' stroke='%23EF233C' stroke-width='1'/%3E%3C/svg%3E");
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='60' viewBox='0 0 60 60'%3E%3Cpolygon points='30,5 55,17.5 55,42.5 30,55 5,42.5 5,17.5' fill='none' stroke='%23EF233C' stroke-width='1'/%3E%3C/svg%3E");
             pointer-events: none;
             z-index: 0;
         }
@@ -481,39 +481,133 @@
             return date.toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
         }
 
+        // Компонент отображения деталей устройства
+        function DeviceDetailsView({ details }) {
+            return (
+                <div>
+                    <div className="details-grid-inner">
+                        <div className="detail-item">
+                            <div className="detail-label">IP Адрес</div>
+                            <div className="detail-value">{details.ip || '—'}</div>
+                        </div>
+                        <div className="detail-item">
+                            <div className="detail-label">Операционная система</div>
+                            <div className="detail-value">{details.os || '—'}</div>
+                        </div>
+                        <div className="detail-item">
+                            <div className="detail-label">Версия движка Dr.Web</div>
+                            <div className="detail-value">{details.engine_version || '—'}</div>
+                        </div>
+                        <div className="detail-item">
+                            <div className="detail-label">Последнее подключение</div>
+                            <div className="detail-value">{details.last_seen_time ? formatTimestamp(details.last_seen_time) : '—'}</div>
+                        </div>
+                        <div className="detail-item">
+                            <div className="detail-label">Отдел</div>
+                            <div className="detail-value">{details.department !== 'N/A' ? details.department : '—'}</div>
+                        </div>
+                        <div className="detail-item">
+                            <div className="detail-label">Организация</div>
+                            <div className="detail-value">{details.organization !== 'N/A' ? details.organization : '—'}</div>
+                        </div>
+                        <div className="detail-item">
+                            <div className="detail-label">Город</div>
+                            <div className="detail-value">{details.city !== 'N/A' ? details.city : '—'}</div>
+                        </div>
+                        <div className="detail-item">
+                            <div className="detail-label">Родительская группа</div>
+                            <div className="detail-value">{details.parent_name || '—'}</div>
+                        </div>
+                    </div>
+                    
+                    {details.groups && details.groups.length > 0 && (
+                        <div style={{ marginTop: '15px' }}>
+                            <div className="detail-label" style={{ marginBottom: '8px' }}>Группы:</div>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                                {details.groups.map((group, gi) => (
+                                    <span key={gi} style={{
+                                        padding: '4px 10px',
+                                        background: 'rgba(239, 35, 60, 0.15)',
+                                        border: '1px solid rgba(239, 35, 60, 0.3)',
+                                        borderRadius: '4px',
+                                        fontSize: '12px',
+                                        fontFamily: 'Montserrat, sans-serif',
+                                        color: '#F5F5F5'
+                                    }}>{group}</span>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {details.running_components && details.running_components.length > 0 && (
+                        <div style={{ marginTop: '15px' }}>
+                            <div className="detail-label" style={{ marginBottom: '8px' }}>Запущенные компоненты ({details.running_components.length}):</div>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                {details.running_components.slice(0, 5).map((comp, ci) => (
+                                    <div key={ci} style={{
+                                        padding: '6px 10px',
+                                        background: 'rgba(16, 185, 129, 0.1)',
+                                        border: '1px solid rgba(16, 185, 129, 0.2)',
+                                        borderRadius: '4px',
+                                        fontSize: '12px',
+                                        fontFamily: 'Play, sans-serif',
+                                        color: '#10B981'
+                                    }}>
+                                        ✅ {comp.name}
+                                        {comp.user && comp.user !== 'N/A' && <span style={{ color: '#6B7280', marginLeft: '8px' }}>({comp.user})</span>}
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    <div style={{ marginTop: '15px', padding: '10px', background: 'rgba(10, 10, 10, 0.5)', borderRadius: '6px', border: '1px solid rgba(239, 35, 60, 0.1)' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px', fontSize: '12px', fontFamily: 'Montserrat, sans-serif' }}>
+                            <div><span style={{ color: '#6B7280' }}>ID:</span> <span style={{ color: '#F5F5F5' }}>{details.id}</span></div>
+                            <div><span style={{ color: '#6B7280' }}>Баз:</span> <span style={{ color: '#F5F5F5' }}>{details.bases_count}</span></div>
+                            <div><span style={{ color: '#6B7280' }}>Записей вирусов:</span> <span style={{ color: '#F5F5F5' }}>{details.bases_total_viruses ? details.bases_total_viruses.toLocaleString() : '0'}</span></div>
+                            <div><span style={{ color: '#6B7280' }}>Первый вход:</span> <span style={{ color: '#F5F5F5' }}>{details.first_login ? formatTimestamp(details.first_login) : '—'}</span></div>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
         // Компонент списка устройств с раскрывающимися карточками
         function DeviceList({ devices }) {
-            const [expandedDevices, setExpandedDevices] = useState(new Set());
+            const [expandedIndex, setExpandedIndex] = useState(null);
             const [deviceDetails, setDeviceDetails] = useState({});
-            const [loadingDevices, setLoadingDevices] = useState(new Set());
+            const [loadingIndex, setLoadingIndex] = useState(null);
             const statusText = { protected: 'Защищено', warning: 'Внимание', critical: 'Критично' };
 
             const toggleDevice = async (index, device) => {
-                const newExpanded = new Set(expandedDevices);
-                if (newExpanded.has(index)) {
-                    newExpanded.delete(index);
+                console.log('🖱️ Клик на устройство:', device.name, 'ID:', device.id);
+                
+                if (expandedIndex === index) {
+                    // Закрываем
+                    setExpandedIndex(null);
                 } else {
-                    newExpanded.add(index);
+                    // Открываем
+                    setExpandedIndex(index);
+                    
                     // Загружаем детали если ещё не загружены
                     if (!deviceDetails[device.id] && device.id) {
-                        const newLoading = new Set(loadingDevices);
-                        newLoading.add(index);
-                        setLoadingDevices(newLoading);
+                        console.log('📡 Загрузка деталей для', device.id);
+                        setLoadingIndex(index);
                         try {
                             const response = await fetch(`/api/station/${device.id}`);
+                            console.log('📦 Ответ API:', response.status);
                             if (response.ok) {
                                 const details = await response.json();
+                                console.log('✅ Детали получены:', details);
                                 setDeviceDetails(prev => ({ ...prev, [device.id]: details }));
                             }
                         } catch (error) {
-                            console.warn(`Не удалось загрузить детали для ${device.name}:`, error);
+                            console.error('❌ Ошибка загрузки деталей:', error);
                         }
-                        const removeLoading = new Set(loadingDevices);
-                        removeLoading.delete(index);
-                        setLoadingDevices(removeLoading);
+                        setLoadingIndex(null);
                     }
                 }
-                setExpandedDevices(newExpanded);
             };
 
             return (
@@ -522,114 +616,24 @@
                     <div className="list-container">
                         {devices.map((device, i) => (
                             <div key={i} className={`list-item ${device.status}`}>
-                                <div className="item-header" onClick={() => toggleDevice(i)}>
+                                <div className="item-header" onClick={() => toggleDevice(i, device)}>
                                     <div style={{ flex: 1 }}>
                                         <div className="item-name">{device.name}</div>
                                         <div className="item-sub">{formatTimestamp(device.last_update)} • {device.os}{device.ip && device.ip !== 'N/A' ? ` • ${device.ip}` : ''}</div>
                                     </div>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                                         <span className={`badge badge-${device.status}`}>{statusText[device.status]}</span>
-                                        <span className={`expand-icon ${expandedDevices.has(i) ? 'expanded' : ''}`}>▼</span>
+                                        <span className={`expand-icon ${expandedIndex === i ? 'expanded' : ''}`}>▼</span>
                                     </div>
                                 </div>
-                                {expandedDevices.has(i) && (
+                                {expandedIndex === i && (
                                     <div className="device-details">
-                                        {loadingDevices.has(i) ? (
+                                        {loadingIndex === i ? (
                                             <div style={{ textAlign: 'center', padding: '20px', color: '#6B7280' }}>
                                                 <div style={{ fontSize: '14px', fontFamily: 'Montserrat, sans-serif' }}>⏳ Загрузка деталей...</div>
                                             </div>
                                         ) : deviceDetails[device.id] ? (
-                                            (() => {
-                                                const details = deviceDetails[device.id];
-                                                return (
-                                                    <div>
-                                                        <div className="details-grid-inner">
-                                                            <div className="detail-item">
-                                                                <div className="detail-label">IP Адрес</div>
-                                                                <div className="detail-value">{details.ip || '—'}</div>
-                                                            </div>
-                                                            <div className="detail-item">
-                                                                <div className="detail-label">Операционная система</div>
-                                                                <div className="detail-value">{details.os || '—'}</div>
-                                                            </div>
-                                                            <div className="detail-item">
-                                                                <div className="detail-label">Версия движка Dr.Web</div>
-                                                                <div className="detail-value">{details.engine_version || '—'}</div>
-                                                            </div>
-                                                            <div className="detail-item">
-                                                                <div className="detail-label">Последнее подключение</div>
-                                                                <div className="detail-value">{details.last_seen_time ? formatTimestamp(details.last_seen_time) : '—'}</div>
-                                                            </div>
-                                                            <div className="detail-item">
-                                                                <div className="detail-label">Отдел</div>
-                                                                <div className="detail-value">{details.department !== 'N/A' ? details.department : '—'}</div>
-                                                            </div>
-                                                            <div className="detail-item">
-                                                                <div className="detail-label">Организация</div>
-                                                                <div className="detail-value">{details.organization !== 'N/A' ? details.organization : '—'}</div>
-                                                            </div>
-                                                            <div className="detail-item">
-                                                                <div className="detail-label">Город</div>
-                                                                <div className="detail-value">{details.city !== 'N/A' ? details.city : '—'}</div>
-                                                            </div>
-                                                            <div className="detail-item">
-                                                                <div className="detail-label">Родительская группа</div>
-                                                                <div className="detail-value">{details.parent_name || '—'}</div>
-                                                            </div>
-                                                        </div>
-                                                        
-                                                        {details.groups && details.groups.length > 0 && (
-                                                            <div style={{ marginTop: '15px' }}>
-                                                                <div className="detail-label" style={{ marginBottom: '8px' }}>Группы:</div>
-                                                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                                                                    {details.groups.map((group, gi) => (
-                                                                        <span key={gi} style={{
-                                                                            padding: '4px 10px',
-                                                                            background: 'rgba(239, 35, 60, 0.15)',
-                                                                            border: '1px solid rgba(239, 35, 60, 0.3)',
-                                                                            borderRadius: '4px',
-                                                                            fontSize: '12px',
-                                                                            fontFamily: 'Montserrat, sans-serif',
-                                                                            color: '#F5F5F5'
-                                                                        }}>{group}</span>
-                                                                    ))}
-                                                                </div>
-                                                            </div>
-                                                        )}
-
-                                                        {details.running_components && details.running_components.length > 0 && (
-                                                            <div style={{ marginTop: '15px' }}>
-                                                                <div className="detail-label" style={{ marginBottom: '8px' }}>Запущенные компоненты ({details.running_components.length}):</div>
-                                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                                                                    {details.running_components.slice(0, 5).map((comp, ci) => (
-                                                                        <div key={ci} style={{
-                                                                            padding: '6px 10px',
-                                                                            background: 'rgba(16, 185, 129, 0.1)',
-                                                                            border: '1px solid rgba(16, 185, 129, 0.2)',
-                                                                            borderRadius: '4px',
-                                                                            fontSize: '12px',
-                                                                            fontFamily: 'Play, sans-serif',
-                                                                            color: '#10B981'
-                                                                        }}>
-                                                                            ✅ {comp.name}
-                                                                            {comp.user && comp.user !== 'N/A' && <span style={{ color: '#6B7280', marginLeft: '8px' }}>({comp.user})</span>}
-                                                                        </div>
-                                                                    ))}
-                                                                </div>
-                                                            </div>
-                                                        )}
-
-                                                        <div style={{ marginTop: '15px', padding: '10px', background: 'rgba(10, 10, 10, 0.5)', borderRadius: '6px', border: '1px solid rgba(239, 35, 60, 0.1)' }}>
-                                                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px', fontSize: '12px', fontFamily: 'Montserrat, sans-serif' }}>
-                                                                <div><span style={{ color: '#6B7280' }}>ID:</span> <span style={{ color: '#F5F5F5' }}>{details.id}</span></div>
-                                                                <div><span style={{ color: '#6B7280' }}>Баз:</span> <span style={{ color: '#F5F5F5' }}>{details.bases_count}</span></div>
-                                                                <div><span style={{ color: '#6B7280' }}>Записей вирусов:</span> <span style={{ color: '#F5F5F5' }}>{details.bases_total_viruses.toLocaleString()}</span></div>
-                                                                <div><span style={{ color: '#6B7280' }}>Первый вход:</span> <span style={{ color: '#F5F5F5' }}>{details.first_login ? formatTimestamp(details.first_login) : '—'}</span></div>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                );
-                                            })()
+                                            <DeviceDetailsView details={deviceDetails[device.id]} />
                                         ) : (
                                             <div style={{ textAlign: 'center', padding: '20px', color: '#6B7280' }}>
                                                 <div style={{ fontSize: '14px', fontFamily: 'Montserrat, sans-serif' }}>
