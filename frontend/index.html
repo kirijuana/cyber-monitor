@@ -42,7 +42,7 @@
             top: 0; left: 0;
             width: 100%; height: 100%;
             opacity: 0.03;
-            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='60' viewBox='0 0 60 60'%3E%3Cpolygon points='30,5 55,17.5 55,42.5 30,55 5,42.5 5,17.5' fill='none' stroke='%23EF233C' stroke-width='1'/%3E%3C/svg%3E");
+            background-image: url("image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='60' viewBox='0 0 60 60'%3E%3Cpolygon points='30,5 55,17.5 55,42.5 30,55 5,42.5 5,17.5' fill='none' stroke='%23EF233C' stroke-width='1'/%3E%3C/svg%3E");
             pointer-events: none;
             z-index: 0;
         }
@@ -55,6 +55,10 @@
             50% { box-shadow: 0 0 0 10px rgba(16, 185, 129, 0); }
         }
         @keyframes count-up { 0% { transform: scale(1); } 50% { transform: scale(1.2); } 100% { transform: scale(1); } }
+        @keyframes slideDown {
+            from { max-height: 0; opacity: 0; }
+            to { max-height: 500px; opacity: 1; }
+        }
 
         /* === ШАПКА === */
         .header {
@@ -121,7 +125,7 @@
             border: 1px solid rgba(239, 35, 60, 0.2);
             border-radius: 12px;
             padding: 25px;
-            max-height: 400px;
+            max-height: 500px;
             overflow-y: auto;
         }
 
@@ -138,20 +142,28 @@
         .list-container { display: flex; flex-direction: column; gap: 10px; }
 
         .list-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 12px 15px;
             background: rgba(10, 10, 10, 0.5);
             border-radius: 8px;
             border-left: 3px solid var(--color-gray);
             transition: all 0.3s ease;
+            overflow: hidden;
         }
 
-        .list-item:hover { background: rgba(10, 10, 10, 0.7); }
         .list-item.protected, .list-item.online { border-left-color: var(--color-green); }
         .list-item.warning, .list-item.degraded { border-left-color: var(--color-yellow); }
-        .list-item.critical, .list-item.offline { border-left-color: var(--color-red); animation: blink 2s ease-in-out infinite; }
+        .list-item.critical, .list-item.offline { border-left-color: var(--color-red); }
+        .list-item.critical .item-header, .list-item.offline .item-header { animation: blink 2s ease-in-out infinite; }
+
+        .item-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 15px;
+            cursor: pointer;
+            transition: background 0.2s ease;
+        }
+
+        .item-header:hover { background: rgba(10, 10, 10, 0.7); }
 
         .item-name { font-size: 16px; }
         .item-sub { font-size: 12px; color: var(--color-gray); margin-top: 4px; }
@@ -168,6 +180,51 @@
         .badge-protected, .badge-online { background: rgba(16, 185, 129, 0.2); color: var(--color-green); }
         .badge-warning, .badge-degraded { background: rgba(245, 158, 11, 0.2); color: var(--color-yellow); }
         .badge-critical, .badge-offline { background: rgba(239, 35, 60, 0.2); color: var(--color-red); }
+
+        /* === ДЕТАЛИ УСТРОЙСТВА === */
+        .device-details {
+            padding: 0 15px 15px;
+            border-top: 1px solid rgba(239, 35, 60, 0.1);
+            animation: slideDown 0.3s ease;
+        }
+
+        .details-grid-inner {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .detail-item {
+            background: rgba(10, 10, 10, 0.6);
+            padding: 10px;
+            border-radius: 6px;
+            border: 1px solid rgba(239, 35, 60, 0.1);
+        }
+
+        .detail-label {
+            font-size: 11px;
+            color: var(--color-gray);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 4px;
+        }
+
+        .detail-value {
+            font-size: 14px;
+            color: var(--color-white);
+            font-family: 'Montserrat', sans-serif;
+        }
+
+        .expand-icon {
+            transition: transform 0.3s ease;
+            color: var(--color-gray);
+            font-size: 12px;
+        }
+
+        .expand-icon.expanded {
+            transform: rotate(180deg);
+        }
 
         /* === СТАТУС === */
         .connection-status {
@@ -203,6 +260,7 @@
             .stats-grid { grid-template-columns: repeat(2, 1fr); gap: 20px; padding: 20px; }
             .details-grid { grid-template-columns: 1fr; padding: 0 20px 20px; }
             .header { flex-direction: column; gap: 20px; }
+            .details-grid-inner { grid-template-columns: 1fr; }
         }
 
         @media (max-width: 640px) {
@@ -220,7 +278,7 @@
     <script type="text/babel">
         const { useState, useEffect } = React;
 
-        // Mock данные
+        // Mock данные с расширенной информацией
         const mockData = {
             timestamp: new Date().toISOString(),
             summary: {
@@ -231,24 +289,118 @@
                 threats_blocked_today: 342,
             },
             devices: [
-                { name: 'SRV-DC01 (Контроллер домена)', status: 'protected', last_update: Date.now() / 1000 - 60, os: 'Windows Server 2022' },
-                { name: 'SRV-DC02 (Контроллер домена)', status: 'protected', last_update: Date.now() / 1000 - 120, os: 'Windows Server 2022' },
-                { name: 'SRV-FILE01 (Файловый сервер)', status: 'protected', last_update: Date.now() / 1000 - 30, os: 'Windows Server 2019' },
-                { name: 'SRV-SQL01 (Сервер БД)', status: 'protected', last_update: Date.now() / 1000 - 45, os: 'Windows Server 2022' },
-                { name: 'SRV-EXCHANGE01 (Почта)', status: 'protected', last_update: Date.now() / 1000 - 90, os: 'Windows Server 2019' },
-                { name: 'SRV-BACKUP01 (Резервное копирование)', status: 'warning', last_update: Date.now() / 1000 - 3600, os: 'Windows Server 2019' },
-                { name: 'SRV-PRINT01 (Принт-сервер)', status: 'warning', last_update: Date.now() / 1000 - 7200, os: 'Windows Server 2016' },
-                { name: 'WS-IVANOV (Бухгалтерия)', status: 'protected', last_update: Date.now() / 1000 - 15, os: 'Windows 11 Pro' },
-                { name: 'WS-PETROV (Бухгалтерия)', status: 'protected', last_update: Date.now() / 1000 - 20, os: 'Windows 11 Pro' },
-                { name: 'WS-SIDOROV (Кадры)', status: 'protected', last_update: Date.now() / 1000 - 25, os: 'Windows 10 Pro' },
-                { name: 'WS-KOZLOV (IT отдел)', status: 'protected', last_update: Date.now() / 1000 - 10, os: 'Windows 11 Pro' },
-                { name: 'WS-NOVIKOV (IT отдел)', status: 'protected', last_update: Date.now() / 1000 - 35, os: 'Windows 11 Pro' },
-                { name: 'WS-SMIRNOVA (Директор)', status: 'protected', last_update: Date.now() / 1000 - 50, os: 'Windows 11 Pro' },
-                { name: 'WS-VOLKOV (Продажи)', status: 'warning', last_update: Date.now() / 1000 - 1800, os: 'Windows 10 Pro' },
-                { name: 'WS-MOROZOV (Продажи)', status: 'protected', last_update: Date.now() / 1000 - 40, os: 'Windows 10 Pro' },
-                { name: 'WS-SOKOLOV (Склад)', status: 'critical', last_update: Date.now() / 1000 - 86400, os: 'Windows 7 Pro' },
-                { name: 'WS-ORLOV (Склад)', status: 'critical', last_update: Date.now() / 1000 - 172800, os: 'Windows 7 Pro' },
-                { name: 'WS-VASILIEV (Финансы)', status: 'critical', last_update: Date.now() / 1000 - 259200, os: 'Windows 10 Pro' },
+                { 
+                    name: 'SRV-DC01 (Контроллер домена)', 
+                    status: 'protected', 
+                    last_update: Date.now() / 1000 - 60, 
+                    os: 'Windows Server 2022',
+                    ip: '10.4.0.10',
+                    mac: '00:1A:2B:3C:4D:5E',
+                    antivirus_version: '12.6.4.1',
+                    last_scan: Date.now() / 1000 - 3600,
+                    threats_blocked: 15,
+                    user: 'SYSTEM',
+                    group: 'Серверы',
+                    uptime: '45 дней'
+                },
+                { 
+                    name: 'SRV-FILE01 (Файловый сервер)', 
+                    status: 'protected', 
+                    last_update: Date.now() / 1000 - 30, 
+                    os: 'Windows Server 2019',
+                    ip: '10.4.0.20',
+                    mac: '00:1A:2B:3C:4D:5F',
+                    antivirus_version: '12.6.4.1',
+                    last_scan: Date.now() / 1000 - 7200,
+                    threats_blocked: 8,
+                    user: 'SYSTEM',
+                    group: 'Серверы',
+                    uptime: '30 дней'
+                },
+                { 
+                    name: 'SRV-BACKUP01 (Резервное копирование)', 
+                    status: 'warning', 
+                    last_update: Date.now() / 1000 - 3600, 
+                    os: 'Windows Server 2019',
+                    ip: '10.4.0.30',
+                    mac: '00:1A:2B:3C:4D:60',
+                    antivirus_version: '12.5.3.2',
+                    last_scan: Date.now() / 1000 - 86400,
+                    threats_blocked: 3,
+                    user: 'SYSTEM',
+                    group: 'Серверы',
+                    uptime: '15 дней'
+                },
+                { 
+                    name: 'WS-IVANOV (Бухгалтерия)', 
+                    status: 'protected', 
+                    last_update: Date.now() / 1000 - 15, 
+                    os: 'Windows 11 Pro',
+                    ip: '10.4.1.101',
+                    mac: '00:1A:2B:3C:4D:70',
+                    antivirus_version: '12.6.4.1',
+                    last_scan: Date.now() / 1000 - 1800,
+                    threats_blocked: 2,
+                    user: 'ivanov',
+                    group: 'Бухгалтерия',
+                    uptime: '7 дней'
+                },
+                { 
+                    name: 'WS-SOKOLOV (Склад)', 
+                    status: 'critical', 
+                    last_update: Date.now() / 1000 - 86400, 
+                    os: 'Windows 7 Pro',
+                    ip: '10.4.2.50',
+                    mac: '00:1A:2B:3C:4D:80',
+                    antivirus_version: '11.5.2.1',
+                    last_scan: Date.now() / 1000 - 604800,
+                    threats_blocked: 0,
+                    user: 'sokolov',
+                    group: 'Склад',
+                    uptime: '90 дней'
+                },
+                { 
+                    name: 'WS-VOLKOV (Продажи)', 
+                    status: 'warning', 
+                    last_update: Date.now() / 1000 - 1800, 
+                    os: 'Windows 10 Pro',
+                    ip: '10.4.1.200',
+                    mac: '00:1A:2B:3C:4D:90',
+                    antivirus_version: '12.6.3.5',
+                    last_scan: Date.now() / 1000 - 14400,
+                    threats_blocked: 5,
+                    user: 'volkov',
+                    group: 'Продажи',
+                    uptime: '12 дней'
+                },
+                { 
+                    name: 'WS-KOZLOV (IT отдел)', 
+                    status: 'protected', 
+                    last_update: Date.now() / 1000 - 10, 
+                    os: 'Windows 11 Pro',
+                    ip: '10.4.0.100',
+                    mac: '00:1A:2B:3C:4D:A0',
+                    antivirus_version: '12.6.4.1',
+                    last_scan: Date.now() / 1000 - 900,
+                    threats_blocked: 12,
+                    user: 'kozlov',
+                    group: 'IT',
+                    uptime: '3 дня'
+                },
+                { 
+                    name: 'WS-VASILIEV (Финансы)', 
+                    status: 'critical', 
+                    last_update: Date.now() / 1000 - 259200, 
+                    os: 'Windows 10 Pro',
+                    ip: '10.4.1.150',
+                    mac: '00:1A:2B:3C:4D:B0',
+                    antivirus_version: '12.4.1.0',
+                    last_scan: Date.now() / 1000 - 1209600,
+                    threats_blocked: 0,
+                    user: 'vasiliev',
+                    group: 'Финансы',
+                    uptime: '120 дней'
+                },
             ],
             services: [
                 { name: 'Active Directory', status: 'online', uptime: '99.99%' },
@@ -329,21 +481,75 @@
             return date.toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
         }
 
-        // Компонент списка устройств
+        // Компонент списка устройств с раскрывающимися карточками
         function DeviceList({ devices }) {
+            const [expandedDevices, setExpandedDevices] = useState(new Set());
             const statusText = { protected: 'Защищено', warning: 'Внимание', critical: 'Критично' };
-            
+
+            const toggleDevice = (index) => {
+                const newExpanded = new Set(expandedDevices);
+                if (newExpanded.has(index)) {
+                    newExpanded.delete(index);
+                } else {
+                    newExpanded.add(index);
+                }
+                setExpandedDevices(newExpanded);
+            };
+
             return (
                 <div className="detail-panel">
                     <h2 className="panel-title">Устройства ({devices.length})</h2>
                     <div className="list-container">
                         {devices.map((device, i) => (
                             <div key={i} className={`list-item ${device.status}`}>
-                                <div>
-                                    <div className="item-name">{device.name}</div>
-                                    <div className="item-sub">{formatTimestamp(device.last_update)} • {device.os}</div>
+                                <div className="item-header" onClick={() => toggleDevice(i)}>
+                                    <div style={{ flex: 1 }}>
+                                        <div className="item-name">{device.name}</div>
+                                        <div className="item-sub">{formatTimestamp(device.last_update)} • {device.os}</div>
+                                    </div>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                        <span className={`badge badge-${device.status}`}>{statusText[device.status]}</span>
+                                        <span className={`expand-icon ${expandedDevices.has(i) ? 'expanded' : ''}`}>▼</span>
+                                    </div>
                                 </div>
-                                <span className={`badge badge-${device.status}`}>{statusText[device.status]}</span>
+                                {expandedDevices.has(i) && (
+                                    <div className="device-details">
+                                        <div className="details-grid-inner">
+                                            <div className="detail-item">
+                                                <div className="detail-label">IP Адрес</div>
+                                                <div className="detail-value">{device.ip || 'N/A'}</div>
+                                            </div>
+                                            <div className="detail-item">
+                                                <div className="detail-label">MAC Адрес</div>
+                                                <div className="detail-value">{device.mac || 'N/A'}</div>
+                                            </div>
+                                            <div className="detail-item">
+                                                <div className="detail-label">Версия антивируса</div>
+                                                <div className="detail-value">{device.antivirus_version || 'N/A'}</div>
+                                            </div>
+                                            <div className="detail-item">
+                                                <div className="detail-label">Последнее сканирование</div>
+                                                <div className="detail-value">{formatTimestamp(device.last_scan)}</div>
+                                            </div>
+                                            <div className="detail-item">
+                                                <div className="detail-label">Заблокировано угроз</div>
+                                                <div className="detail-value">{device.threats_blocked || 0}</div>
+                                            </div>
+                                            <div className="detail-item">
+                                                <div className="detail-label">Пользователь</div>
+                                                <div className="detail-value">{device.user || 'N/A'}</div>
+                                            </div>
+                                            <div className="detail-item">
+                                                <div className="detail-label">Группа</div>
+                                                <div className="detail-value">{device.group || 'N/A'}</div>
+                                            </div>
+                                            <div className="detail-item">
+                                                <div className="detail-label">Время работы</div>
+                                                <div className="detail-value">{device.uptime || 'N/A'}</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         ))}
                     </div>
@@ -361,8 +567,10 @@
                     <div className="list-container">
                         {services.map((service, i) => (
                             <div key={i} className={`list-item ${service.status}`}>
-                                <span className="item-name">{service.name}</span>
-                                <span className={`badge badge-${service.status}`}>{service.uptime}</span>
+                                <div className="item-header" style={{ cursor: 'default' }}>
+                                    <span className="item-name">{service.name}</span>
+                                    <span className={`badge badge-${service.status}`}>{service.uptime}</span>
+                                </div>
                             </div>
                         ))}
                     </div>
