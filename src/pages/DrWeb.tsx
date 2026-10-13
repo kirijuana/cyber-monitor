@@ -10,6 +10,23 @@ interface Device {
   ip: string;
 }
 
+interface ServerInfo {
+  hostname: string;
+  version: string;
+  uptime: number;
+  os: string;
+  platform: string;
+  memory: {
+    total: number;
+    free: number;
+    used_by_server: number;
+  };
+  filesystem: {
+    total: number;
+    free: number;
+  };
+}
+
 interface Summary {
   total_devices: number;
   protected: number;
@@ -23,6 +40,7 @@ type FilterType = 'all' | 'threats' | 'clean' | 'critical';
 export function DrWeb() {
   const navigate = useNavigate();
   const [summary, setSummary] = useState<Summary | null>(null);
+  const [server, setServer] = useState<ServerInfo | null>(null);
   const [devices, setDevices] = useState<Device[]>([]);
   const [threatsMap, setThreatsMap] = useState<Record<string, number>>({});
   const [filter, setFilter] = useState<FilterType>('all');
@@ -31,7 +49,7 @@ export function DrWeb() {
 
   useEffect(() => {
     fetchData();
-    const interval = setInterval(fetchData, 10000);
+    const interval = setInterval(fetchData, 30000);
     return () => clearInterval(interval);
   }, []);
 
@@ -48,6 +66,9 @@ export function DrWeb() {
         const data = await response.json();
         setSummary(data.summary);
         setDevices(data.devices);
+        if (data.server) {
+          setServer(data.server);
+        }
       }
     } catch (error) {
       console.error('Ошибка загрузки:', error);
@@ -60,7 +81,6 @@ export function DrWeb() {
     setLoadingThreats(true);
     const newThreatsMap: Record<string, number> = {};
     
-    // Загружаем угрозы для всех устройств параллельно
     const promises = devices.map(async (device) => {
       try {
         const response = await fetch(`/api/station/${device.id}`);
@@ -102,6 +122,23 @@ export function DrWeb() {
     });
   };
 
+  const formatUptime = (seconds: number) => {
+    if (!seconds) return '—';
+    const days = Math.floor(seconds / 86400);
+    const hours = Math.floor((seconds % 86400) / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    
+    if (days > 0) return `${days}д ${hours}ч`;
+    if (hours > 0) return `${hours}ч ${minutes}м`;
+    return `${minutes}м`;
+  };
+
+  const formatBytes = (mb: number) => {
+    if (!mb) return '—';
+    if (mb > 1024) return `${(mb / 1024).toFixed(1)} ГБ`;
+    return `${mb.toFixed(0)} МБ`;
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'protected': return { bg: 'bg-emerald-500', text: 'text-emerald-400', badge: 'bg-emerald-500/20 border-emerald-500/30' };
@@ -134,6 +171,47 @@ export function DrWeb() {
         <h1 className="text-4xl font-bold mb-2 text-white">Dr.Web</h1>
         <p className="text-slate-400">Мониторинг антивирусной защиты</p>
       </div>
+
+      {/* Информация о сервере */}
+      {server && (
+        <div className="card p-6 mb-6">
+          <h2 className="text-xl font-bold text-white mb-4">Сервер Dr.Web</h2>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div>
+              <div className="text-slate-400 text-sm mb-1">Имя хоста</div>
+              <div className="text-white font-medium">{server.hostname}</div>
+            </div>
+            <div>
+              <div className="text-slate-400 text-sm mb-1">Версия</div>
+              <div className="text-white font-medium">{server.version}</div>
+            </div>
+            <div>
+              <div className="text-slate-400 text-sm mb-1">Uptime</div>
+              <div className="text-white font-medium">{formatUptime(server.uptime)}</div>
+            </div>
+            <div>
+              <div className="text-slate-400 text-sm mb-1">ОС</div>
+              <div className="text-white font-medium">{server.os}</div>
+            </div>
+            <div>
+              <div className="text-slate-400 text-sm mb-1">Память (всего)</div>
+              <div className="text-white font-medium">{formatBytes(server.memory?.total)}</div>
+            </div>
+            <div>
+              <div className="text-slate-400 text-sm mb-1">Память (свободно)</div>
+              <div className="text-white font-medium">{formatBytes(server.memory?.free)}</div>
+            </div>
+            <div>
+              <div className="text-slate-400 text-sm mb-1">Диск (всего)</div>
+              <div className="text-white font-medium">{formatBytes(server.filesystem?.total)}</div>
+            </div>
+            <div>
+              <div className="text-slate-400 text-sm mb-1">Диск (свободно)</div>
+              <div className="text-white font-medium">{formatBytes(server.filesystem?.free)}</div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Статистика */}
       {summary && (
@@ -250,7 +328,6 @@ export function DrWeb() {
                   </div>
 
                   <div className="flex items-center gap-3 ml-4">
-                    {/* Счётчик угроз */}
                     {threats > 0 ? (
                       <div className="flex items-center gap-2 px-3 py-1.5 bg-red-500/20 border border-red-500/30 rounded-lg">
                         <span className="text-red-400 font-bold text-sm">
@@ -263,12 +340,10 @@ export function DrWeb() {
                       </div>
                     )}
 
-                    {/* Статус */}
                     <span className={`px-3 py-1.5 rounded-lg text-sm font-medium border ${colors.badge} ${colors.text}`}>
                       {getStatusText(device.status)}
                     </span>
 
-                    {/* Кнопка анализа */}
                     <button
                       onClick={() => navigate(`/station/${device.id}`)}
                       className="px-4 py-2 bg-indigo-500 hover:bg-indigo-600 text-white rounded-lg font-medium transition-all hover:shadow-lg hover:shadow-indigo-500/30"

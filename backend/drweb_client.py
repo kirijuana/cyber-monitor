@@ -112,6 +112,22 @@ def fetch_drweb_data(client: DrWebClient):
 
     logger.info(f"✅ Данные обновлены: {online_count} в сети, {warning_count} с ошибками, {critical_count} критических")
 
+    # Получаем расширенную информацию о сервере
+    server_info_extended = get_server_info_extended(client)
+    server_details = {}
+    
+    if server_info_extended and "data" in server_info_extended:
+        server_data = server_info_extended["data"].get("server", {})
+        server_details = {
+            "hostname": server_data.get("hostname", "Unknown"),
+            "version": server_data.get("version", "Unknown"),
+            "uptime": server_data.get("uptime", 0),
+            "os": server_data.get("os", "Unknown"),
+            "platform": server_data.get("platform", "Unknown"),
+            "memory": server_data.get("memory", {}),
+            "filesystem": server_data.get("filesystem", {}),
+        }
+
     return {
         "timestamp": datetime.now().isoformat(),
         "summary": {
@@ -127,7 +143,8 @@ def fetch_drweb_data(client: DrWebClient):
             {"name": "Dr.Web Server", "status": "online", "uptime": "100.00%"},
             {"name": "Backup Server", "status": "degraded", "uptime": "98.50%"},
             {"name": "Mail Gateway", "status": "online", "uptime": "99.90%"}
-        ]
+        ],
+        "server": server_details
     }
 
 
@@ -138,16 +155,27 @@ def get_station_statistics(client: DrWebClient, station_id: str):
         "id": station_id,
         "format": "json",
         "top-viruses": "yes",
-        "virtop": "50",  # Получаем до 50 вирусов
+        "virtop": "50",
     }
     try:
         response = requests.get(url, auth=client.auth, params=params, verify=client.verify_ssl, timeout=15)
         response.raise_for_status()
-        data = response.json()
-        logger.info(f"📊 Статистика станции {station_id}: получено")
-        return data
+        return response.json()
     except Exception as e:
         logger.error(f"Ошибка Dr.Web (statistics {station_id}): {e}")
+        return None
+
+
+def get_server_info_extended(client: DrWebClient):
+    """Получает расширенную информацию о сервере"""
+    url = f"{client.base_url}/api/server/info.ds"
+    params = {"format": "json"}
+    try:
+        response = requests.get(url, auth=client.auth, params=params, verify=client.verify_ssl, timeout=15)
+        response.raise_for_status()
+        return response.json()
+    except Exception as e:
+        logger.error(f"Ошибка Dr.Web (server info): {e}")
         return None
 
 
@@ -170,10 +198,11 @@ def fetch_station_details(client: DrWebClient, station_id: str):
     threats = []
     
     if stats and "data" in stats:
-        # API возвращает данные в data.stations.list[0]
-        stations_list = stats["data"].get("stations", {}).get("list", [])
+        # Согласно документации: data.stations.list[0].viruses_info
+        stations_data = stats["data"].get("stations", {})
+        stations_list = stations_data.get("list", [])
         
-        if stations_list:
+        if stations_list and len(stations_list) > 0:
             station_stats = stations_list[0]
             
             # Получаем информацию о вирусах

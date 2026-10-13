@@ -14,23 +14,39 @@ interface ServiceCard {
   }[];
 }
 
+interface DrWebSummary {
+  total_devices: number;
+  protected: number;
+  warnings: number;
+  critical: number;
+}
+
 export function Dashboard() {
   const navigate = useNavigate();
   const [services, setServices] = useState<ServiceCard[]>([]);
+  const [drwebSummary, setDrwebSummary] = useState<DrWebSummary | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetchDashboardData();
-    const interval = setInterval(fetchDashboardData, 10000);
+    const interval = setInterval(fetchDashboardData, 30000);
     return () => clearInterval(interval);
   }, []);
 
   const fetchDashboardData = async () => {
     try {
-      const response = await fetch('/api/dashboard');
-      if (response.ok) {
-        const data = await response.json();
-        setServices(data.services);
+      // Загружаем данные дашборда
+      const dashboardResponse = await fetch('/api/dashboard');
+      if (dashboardResponse.ok) {
+        const dashboardData = await dashboardResponse.json();
+        setServices(dashboardData.services);
+      }
+
+      // Загружаем сводку Dr.Web
+      const statusResponse = await fetch('/api/status');
+      if (statusResponse.ok) {
+        const statusData = await statusResponse.json();
+        setDrwebSummary(statusData.summary);
       }
     } catch (error) {
       console.error('Ошибка загрузки dashboard:', error);
@@ -84,6 +100,39 @@ export function Dashboard() {
         <h1 className="text-4xl font-bold mb-2 text-white">Панель мониторинга</h1>
         <p className="text-slate-400">Обзор всех сервисов инфраструктуры</p>
       </div>
+
+      {/* Dr.Web сводка */}
+      {drwebSummary && (
+        <div className="card p-6 mb-8">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-2xl font-bold text-white">Dr.Web Security Space</h2>
+            <button
+              onClick={() => navigate('/drweb')}
+              className="px-4 py-2 bg-indigo-500 hover:bg-indigo-600 text-white rounded-lg font-medium transition-all"
+            >
+              Подробнее →
+            </button>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="bg-slate-800/50 rounded-xl p-4">
+              <div className="text-slate-400 text-sm mb-1">Всего станций</div>
+              <div className="text-2xl font-bold text-white">{drwebSummary.total_devices}</div>
+            </div>
+            <div className="bg-slate-800/50 rounded-xl p-4">
+              <div className="text-slate-400 text-sm mb-1">Защищено</div>
+              <div className="text-2xl font-bold text-emerald-400">{drwebSummary.protected}</div>
+            </div>
+            <div className="bg-slate-800/50 rounded-xl p-4">
+              <div className="text-slate-400 text-sm mb-1">Внимание</div>
+              <div className="text-2xl font-bold text-amber-400">{drwebSummary.warnings}</div>
+            </div>
+            <div className="bg-slate-800/50 rounded-xl p-4">
+              <div className="text-slate-400 text-sm mb-1">Критично</div>
+              <div className="text-2xl font-bold text-red-400">{drwebSummary.critical}</div>
+            </div>
+          </div>
+        </div>
+      )}
       
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {services.map((service) => (
