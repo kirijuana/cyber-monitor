@@ -3,6 +3,7 @@ from requests.auth import HTTPBasicAuth
 import logging
 from datetime import datetime
 import urllib3
+import re
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -38,6 +39,38 @@ class DrWebClient:
             logger.error(f"Ошибка Dr.Web (stations): {e}")
             return None
 
+    def get_station_info(self, station_id: str):
+        """Получает детальную информацию о конкретной станции"""
+        url = f"{self.base_url}/api/stations/info.ds"
+        params = {
+            "id": station_id,
+            "format": "json",
+            "bases": "yes",
+            "components": "yes",
+            "group-membership": "yes",
+            "installed-components": "yes",
+            "keys": "yes",
+            "modules": "yes",
+            "running-components": "yes",
+        }
+        try:
+            response = requests.get(url, auth=self.auth, params=params, verify=self.verify_ssl, timeout=15)
+            response.raise_for_status()
+            return response.json()
+        except Exception as e:
+            logger.error(f"Ошибка Dr.Web (station info {station_id}): {e}")
+            return None
+
+
+def extract_ip_from_addr(addr: str) -> str:
+    """Извлекает IP из строки типа 'ssl://10.15.0.10:29974' или 'tcp://192.168.1.1:1921'"""
+    if not addr:
+        return "N/A"
+    match = re.search(r'://([^:]+)', addr)
+    if match:
+        return match.group(1)
+    return "N/A"
+
 
 def fetch_drweb_data(client: DrWebClient):
     """Возвращает свежие данные с Dr.Web"""
@@ -58,32 +91,22 @@ def fetch_drweb_data(client: DrWebClient):
     devices_list = []
 
     if details and "data" in details and "stations" in details["data"]:
-        # Логируем первое устройство для отладки
-        first_state = next(iter(details["data"]["stations"].items()), None)
-        if first_state and first_state[1]:
-            logger.info(f"🔍 Пример данных станции от Dr.Web: {first_state[1][0]}")
-        
         for state, stations in details["data"]["stations"].items():
             for station in stations:
                 ui_status = "protected" if state == "online" else (
                     "warning" if state == "with_update_errors" else "critical")
                 
-                # Расширенные данные для каждого устройства
-                # Dr.Web API может возвращать разные поля, используем безопасное извлечение
+                # Извлекаем IP из last_seen_addr
+                ip = extract_ip_from_addr(station.get("last_seen_addr", ""))
+                
                 devices_list.append({
-                    "name": station.get("hostname", station.get("name", "Unknown")),
+                    "id": station.get("id", ""),
+                    "name": station.get("name", "Unknown"),
                     "status": ui_status,
-                    "last_update": station.get("last_agent_report", station.get("last_seen_time", 0)),
-                    "os": station.get("os_name", station.get("platform", "Unknown OS")),
-                    "ip": station.get("ip", station.get("ip_address", "N/A")),
-                    "mac": station.get("mac", station.get("mac_address", "N/A")),
-                    "antivirus_version": station.get("agent_version", station.get("engine_version", "N/A")),
-                    "last_scan": station.get("last_scan_time", station.get("last_scan", 0)),
-                    "threats_blocked": station.get("threats_count", station.get("infections_count", 0)),
-                    "user": station.get("current_user", station.get("user_name", "N/A")),
-                    "group": station.get("group", station.get("group_name", "N/A")),
-                    "uptime": station.get("uptime", "N/A"),
-                    "raw_data": station,  # Сохраняем все сырые данные для отладки
+                    "last_update": station.get("last_seen_time", 0),
+                    "os": station.get("os_name", "Unknown OS"),
+                    "ip": ip,
+                    "last_seen_addr": station.get("last_seen_addr", ""),
                 })
 
     logger.info(f"✅ Данные обновлены: {online_count} в сети, {warning_count} с ошибками, {critical_count} критических")
@@ -97,7 +120,7 @@ def fetch_drweb_data(client: DrWebClient):
             "critical": critical_count,
             "threats_blocked_today": 0
         },
-        "devices": devices_list[:50],  # Берём первые 50
+        "devices": devices_list[:50],
         "services": [
             {"name": "Active Directory", "status": "online", "uptime": "99.99%"},
             {"name": "Dr.Web Server", "status": "online", "uptime": "100.00%"},
@@ -105,6 +128,97 @@ def fetch_drweb_data(client: DrWebClient):
             {"name": "Mail Gateway", "status": "online", "uptime": "99.90%"}
         ]
     }
+
+
+def fetch_station_details(client: DrWebClient, station_id: str):
+    """Получает детальную информацию о станции и форматирует её"""
+    info = client.get_station_info(station_id)
+    
+    if not info or "data" not in info:
+        return None
+    
+    # API возвращает данные в data.list[0]
+    station_list = info.get("data", {}).get("list", [])
+    if not station_list:
+        return None
+    
+    station = station_list[0]
+    
+    # Извлекаем IP
+    ip = extract_ip_from_addr(station.get("last_seen_addr", ""))
+    
+    # Получаем версию антивируса из installed_components
+    av_version = "N/A"
+    installed = station.get("installed_components", [])
+    for comp in installed:
+        if "engine" in comp.get("name", "").lower() or "agent" in comp.get("name", "").lower():
+            av_version = comp.get("name", "N/A")
+            break
+    if av_version == "N/A" and installed:
+        av_version = installed[0].get("name", "N/A")
+    
+    # Получаем информацию о модулях (версия движка)
+    engine_version = "N/A"
+    modules = station.get("modules", [])
+    for mod in modules:
+        if "drweb" in mod.get("file_name", "").lower() and mod.get("version"):
+            engine_version = mod.get("version", "N/A")
+            break
+    
+    # Получаем группы
+    groups = []
+    group_membership = station.get("group_membership", [])
+    for g in group_membership:
+        groups.append(g.get("name", ""))
+    
+    # Получаем запущенные компоненты
+    running = []
+    running_components = station.get("running_components", [])
+    for rc in running_components:
+        running.append({
+            "name": rc.get("name", ""),
+            "user": rc.get("user", ""),
+            "started": rc.get("started_time", 0),
+        })
+    
+    # Получаем вирусные базы
+    bases_count = 0
+    bases_total_viruses = 0
+    bases = station.get("bases", [])
+    bases_count = len(bases)
+    for b in bases:
+        bases_total_viruses += b.get("viruses", 0)
+    
+    # Лицензионные ключи
+    keys_data = station.get("keys", {})
+    keys_list = keys_data.get("list", [])
+    
+    result = {
+        "id": station.get("id", ""),
+        "name": station.get("name", "Unknown"),
+        "ip": ip,
+        "os": station.get("os_name", "Unknown OS"),
+        "last_seen_time": station.get("last_seen_time", 0),
+        "last_seen_addr": station.get("last_seen_addr", ""),
+        "department": station.get("department", "N/A"),
+        "description": station.get("description", "N/A"),
+        "city": station.get("city", "N/A"),
+        "country": station.get("country", "N/A"),
+        "organization": station.get("organization", "N/A"),
+        "parent_name": station.get("parent_name", "N/A"),
+        "engine_version": engine_version,
+        "installed_components": [c.get("name", "") for c in installed],
+        "running_components": running,
+        "groups": groups,
+        "bases_count": bases_count,
+        "bases_total_viruses": bases_total_viruses,
+        "keys": keys_list,
+        "state": station.get("state", 0),
+        "created_time": station.get("created_time", 0),
+        "first_login": station.get("firstlogin", 0),
+    }
+    
+    return result
 
 
 def get_empty_data():

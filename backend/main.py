@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
@@ -6,7 +6,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from pathlib import Path
 import logging
 
-from drweb_client import DrWebClient, fetch_drweb_data, get_empty_data
+from drweb_client import DrWebClient, fetch_drweb_data, fetch_station_details, get_empty_data
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -61,6 +61,15 @@ async def root():
 @app.get("/api/status")
 async def get_status():
     return cached_data
+
+
+@app.get("/api/station/{station_id}")
+async def get_station_detail(station_id: str):
+    """Получает детальную информацию о конкретной станции"""
+    details = fetch_station_details(drweb_client, station_id)
+    if not details:
+        raise HTTPException(status_code=404, detail=f"Station {station_id} not found")
+    return details
 
 
 if __name__ == "__main__":
