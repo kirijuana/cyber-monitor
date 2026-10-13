@@ -58,17 +58,6 @@ logger.info("🔄 Фоновый опрос Dr.Web запущен (интерв�
 # Первичное заполнение при старте
 update_cache()
 
-@app.get("/")
-@app.get("/{full_path:path}")
-async def root(full_path: str = ""):
-    """Отдаём React SPA — все маршруты ведут на index.html"""
-    # Если запрашивается файл из assets — отдаём его
-    file_path = FRONTEND_DIR / full_path
-    if full_path and file_path.exists() and file_path.is_file():
-        return FileResponse(str(file_path))
-    # Иначе отдаём index.html (SPA routing)
-    return FileResponse(str(FRONTEND_DIR / "index.html"))
-
 @app.get("/api/status")
 async def get_status():
     return cached_data
@@ -134,6 +123,23 @@ async def get_station_detail(station_id: str):
     if not details:
         raise HTTPException(status_code=404, detail=f"Station {station_id} not found")
     return details
+
+
+@app.get("/")
+async def root():
+    """Главная страница"""
+    return FileResponse(str(FRONTEND_DIR / "index.html"))
+
+
+@app.get("/{full_path:path}")
+async def catch_all(full_path: str):
+    """Отдаём React SPA — все маршруты ведут на index.html"""
+    # Если запрашивается файл из assets — отдаём его
+    file_path = FRONTEND_DIR / full_path
+    if full_path and file_path.exists() and file_path.is_file():
+        return FileResponse(str(file_path))
+    # Иначе отдаём index.html (SPA routing)
+    return FileResponse(str(FRONTEND_DIR / "index.html"))
 
 
 if __name__ == "__main__":
