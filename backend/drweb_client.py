@@ -107,6 +107,7 @@ def fetch_drweb_data(client: DrWebClient):
                     "os": station.get("os_name", "Unknown OS"),
                     "ip": ip,
                     "last_seen_addr": station.get("last_seen_addr", ""),
+                    "state": station.get("state", 0),
                 })
 
     logger.info(f"✅ Данные обновлены: {online_count} в сети, {warning_count} с ошибками, {critical_count} критических")
@@ -171,8 +172,9 @@ def fetch_station_details(client: DrWebClient, station_id: str):
     for g in group_membership:
         groups.append(g.get("name", ""))
     
-    # Получаем запущенные компоненты
+    # Получаем запущенные компоненты и текущего пользователя
     running = []
+    current_user = "N/A"
     running_components = station.get("running_components", [])
     for rc in running_components:
         running.append({
@@ -180,14 +182,22 @@ def fetch_station_details(client: DrWebClient, station_id: str):
             "user": rc.get("user", ""),
             "started": rc.get("started_time", 0),
         })
+        # Берём первого пользователя как текущего
+        if current_user == "N/A" and rc.get("user"):
+            current_user = rc.get("user", "N/A")
     
-    # Получаем вирусные базы
+    # Получаем вирусные базы и время последнего обновления
     bases_count = 0
     bases_total_viruses = 0
+    last_bases_update = 0
     bases = station.get("bases", [])
     bases_count = len(bases)
     for b in bases:
         bases_total_viruses += b.get("viruses", 0)
+        # Находим самое свежее время обновления базы
+        base_time = b.get("created_time", 0)
+        if base_time > last_bases_update:
+            last_bases_update = base_time
     
     # Лицензионные ключи
     keys_data = station.get("keys", {})
@@ -212,6 +222,8 @@ def fetch_station_details(client: DrWebClient, station_id: str):
         "groups": groups,
         "bases_count": bases_count,
         "bases_total_viruses": bases_total_viruses,
+        "last_bases_update": last_bases_update,
+        "current_user": current_user,
         "keys": keys_list,
         "state": station.get("state", 0),
         "created_time": station.get("created_time", 0),

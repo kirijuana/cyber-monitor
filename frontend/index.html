@@ -503,6 +503,18 @@
                             <div className="detail-value">{details.last_seen_time ? formatTimestamp(details.last_seen_time) : '—'}</div>
                         </div>
                         <div className="detail-item">
+                            <div className="detail-label">Пользователь станции</div>
+                            <div className="detail-value" style={{ color: details.current_user && details.current_user !== 'N/A' ? '#10B981' : '#6B7280' }}>
+                                {details.current_user && details.current_user !== 'N/A' ? details.current_user : '—'}
+                            </div>
+                        </div>
+                        <div className="detail-item">
+                            <div className="detail-label">Обновление баз</div>
+                            <div className="detail-value" style={{ color: details.last_bases_update ? '#F59E0B' : '#6B7280' }}>
+                                {details.last_bases_update ? formatTimestamp(details.last_bases_update) : '—'}
+                            </div>
+                        </div>
+                        <div className="detail-item">
                             <div className="detail-label">Отдел</div>
                             <div className="detail-value">{details.department !== 'N/A' ? details.department : '—'}</div>
                         </div>
@@ -563,10 +575,12 @@
 
                     <div style={{ marginTop: '15px', padding: '10px', background: 'rgba(10, 10, 10, 0.5)', borderRadius: '6px', border: '1px solid rgba(239, 35, 60, 0.1)' }}>
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px', fontSize: '12px', fontFamily: 'Montserrat, sans-serif' }}>
-                            <div><span style={{ color: '#6B7280' }}>ID:</span> <span style={{ color: '#F5F5F5' }}>{details.id}</span></div>
-                            <div><span style={{ color: '#6B7280' }}>Баз:</span> <span style={{ color: '#F5F5F5' }}>{details.bases_count}</span></div>
+                            <div><span style={{ color: '#6B7280' }}>ID станции:</span> <span style={{ color: '#F5F5F5' }}>{details.id}</span></div>
+                            <div><span style={{ color: '#6B7280' }}>Вирусных баз:</span> <span style={{ color: '#F5F5F5' }}>{details.bases_count}</span></div>
                             <div><span style={{ color: '#6B7280' }}>Записей вирусов:</span> <span style={{ color: '#F5F5F5' }}>{details.bases_total_viruses ? details.bases_total_viruses.toLocaleString() : '0'}</span></div>
                             <div><span style={{ color: '#6B7280' }}>Первый вход:</span> <span style={{ color: '#F5F5F5' }}>{details.first_login ? formatTimestamp(details.first_login) : '—'}</span></div>
+                            <div><span style={{ color: '#6B7280' }}>Создана:</span> <span style={{ color: '#F5F5F5' }}>{details.created_time ? formatTimestamp(details.created_time) : '—'}</span></div>
+                            <div><span style={{ color: '#6B7280' }}>Описание:</span> <span style={{ color: '#F5F5F5' }}>{details.description !== 'N/A' ? details.description : '—'}</span></div>
                         </div>
                     </div>
                 </div>
