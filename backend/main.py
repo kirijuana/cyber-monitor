@@ -75,18 +75,39 @@ def update_cache():
         stations = []
         for state in ["online", "offline", "with_update_errors"]:
             result = drweb.get_stations_by_state(state)
-            if result and result.get("head", {}).get("status"):
-                station_list = result.get("data", {}).get("stations", [])
-                for s in station_list:
-                    stations.append({
-                        "id": s.get("id", ""),
-                        "name": s.get("name", "Unknown"),
-                        "status": state,
-                        "last_seen_time": s.get("last_seen_time", 0),
-                        "last_seen_addr": s.get("last_seen_addr", ""),
-                        "os_name": s.get("os_name", "Unknown"),
-                        "ip": extract_ip(s.get("last_seen_addr", ""))
-                    })
+            if result and isinstance(result, dict) and result.get("head", {}).get("status"):
+                data = result.get("data", {})
+                
+                # Логируем структуру для отладки
+                logger.debug(f"Структура данных для state={state}: {type(data)}")
+                
+                # API может возвращать список ID или список объектов
+                station_list = data.get("stations", [])
+                
+                if isinstance(station_list, list) and len(station_list) > 0:
+                    # Проверяем тип первого элемента
+                    first_item = station_list[0]
+                    logger.debug(f"Тип первого элемента: {type(first_item)}")
+                    
+                    if isinstance(first_item, str):
+                        # Это список ID станций
+                        logger.info(f"Получен список ID станций для {state}: {len(station_list)}")
+                        # Нужно запросить детали для каждой станции
+                        # Пока пропускаем, добавим позже
+                    elif isinstance(first_item, dict):
+                        # Это список объектов станций
+                        for s in station_list:
+                            if isinstance(s, dict):
+                                stations.append({
+                                    "id": s.get("id", ""),
+                                    "name": s.get("name", "Unknown"),
+                                    "status": state,
+                                    "last_seen_time": s.get("last_seen_time", 0),
+                                    "last_seen_addr": s.get("last_seen_addr", ""),
+                                    "os_name": s.get("os_name", "Unknown"),
+                                    "ip": extract_ip(s.get("last_seen_addr", ""))
+                                })
+        
         cache["stations"] = stations
         logger.info(f"✓ Станции: получено {len(stations)}")
         

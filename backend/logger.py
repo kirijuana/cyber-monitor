@@ -10,7 +10,7 @@ LOG_DIR.mkdir(exist_ok=True)
 log_file = LOG_DIR / f"cyber_monitor_{datetime.now().strftime('%Y%m%d')}.log"
 
 logging.basicConfig(
-    level=logging.INFO,
+    level=logging.DEBUG,
     format='%(asctime)s | %(levelname)-8s | %(name)s | %(message)s',
     datefmt='%Y-%m-%d %H:%M:%S',
     handlers=[
