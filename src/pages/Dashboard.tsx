@@ -1,130 +1,76 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
-interface ServiceCard {
-  id: string;
-  name: string;
-  icon: string;
-  status: 'online' | 'degraded' | 'offline';
-  description: string;
-  stats: {
-    label: string;
-    value: number | string;
-    color: string;
-  }[];
-}
-
-interface DrWebSummary {
-  total_devices: number;
-  protected: number;
-  warnings: number;
-  critical: number;
+interface ServerInfo {
+  hostname: string;
+  version: string;
+  uptime: number;
+  stations_summary: {
+    total: number;
+    online: number;
+    offline: number;
+    with_update_errors: number;
+  };
+  last_update: string;
 }
 
 interface ServerStats {
   data?: {
-    infections?: {
-      total?: number;
-      viruses?: Array<{ name: string; count: number }>;
-    };
-  };
-}
-
-interface QuarantineData {
-  data?: {
-    objects?: Array<any>;
+    viruses?: Record<string, number>;
   };
 }
 
 export function Dashboard() {
   const navigate = useNavigate();
-  const [services, setServices] = useState<ServiceCard[]>([]);
-  const [drwebSummary, setDrWebSummary] = useState<DrWebSummary | null>(null);
-  const [serverStats, setServerStats] = useState<ServerStats>({});
-  const [quarantineData, setQuarantineData] = useState<QuarantineData>({});
+  const [server, setServer] = useState<ServerInfo | null>(null);
+  const [stats, setStats] = useState<ServerStats>({});
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchDashboardData();
-    const interval = setInterval(fetchDashboardData, 30000);
+    fetchData();
+    const interval = setInterval(fetchData, 30000);
     return () => clearInterval(interval);
   }, []);
 
-  const fetchDashboardData = async () => {
+  const fetchData = async () => {
     try {
-      const [dashboardRes, statusRes, statsRes, quarantineRes] = await Promise.all([
-        fetch('/api/dashboard'),
-        fetch('/api/status'),
-        fetch('/api/server/statistics'),
-        fetch('/api/quarantine'),
+      const [serverRes, statsRes] = await Promise.all([
+        fetch('/api/server'),
+        fetch('/api/server-statistics')
       ]);
 
-      if (dashboardRes.ok) {
-        const dashboardData = await dashboardRes.json();
-        setServices(dashboardData.services);
-      }
-
-      if (statusRes.ok) {
-        const statusData = await statusRes.json();
-        setDrWebSummary(statusData.summary);
+      if (serverRes.ok) {
+        const data = await serverRes.json();
+        setServer(data);
       }
 
       if (statsRes.ok) {
-        const statsData = await statsRes.json();
-        setServerStats(statsData);
-      }
-
-      if (quarantineRes.ok) {
-        const quarantineDataRes = await quarantineRes.json();
-        setQuarantineData(quarantineDataRes);
+        const data = await statsRes.json();
+        setStats(data);
       }
     } catch (error) {
-      console.error('Ошибка загрузки dashboard:', error);
+      console.error('Ошибка загрузки:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleServiceClick = (serviceId: string) => {
-    navigate(`/${serviceId}`);
+  const formatUptime = (seconds: number) => {
+    if (!seconds) return '—';
+    const days = Math.floor(seconds / 86400);
+    const hours = Math.floor((seconds % 86400) / 3600);
+    if (days > 0) return `${days}д ${hours}ч`;
+    return `${hours}ч`;
   };
 
-  const getStatusGradient = (status: string) => {
-    switch (status) {
-      case 'online': return 'from-emerald-500/20 to-emerald-600/20 border-emerald-500/30';
-      case 'degraded': return 'from-amber-500/20 to-amber-600/20 border-amber-500/30';
-      case 'offline': return 'from-red-500/20 to-red-600/20 border-red-500/30';
-      default: return 'from-slate-500/20 to-slate-600/20 border-slate-500/30';
-    }
-  };
-
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'online': return 'badge-success';
-      case 'degraded': return 'badge-warning';
-      case 'offline': return 'badge-danger';
-      default: return 'badge';
-    }
-  };
-
-  const getStatusText = (status: string) => {
-    switch (status) {
-      case 'online': return 'Онлайн';
-      case 'degraded': return 'Деградация';
-      case 'offline': return 'Оффлайн';
-      default: return 'Неизвестно';
-    }
-  };
-
-  const totalInfections = serverStats.data?.infections?.total || 0;
-  const quarantineCount = quarantineData.data?.objects?.length || 0;
-  const topViruses = serverStats.data?.infections?.viruses?.slice(0, 5) || [];
+  const topViruses = stats.data?.viruses ? Object.entries(stats.data.viruses)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5) : [];
 
   if (loading) {
     return (
       <div className="flex items-center justify-center h-full">
-        <div className="text-slate-400 text-xl">Загрузка...</div>
+        <div className="text-text-secondary">Загрузка...</div>
       </div>
     );
   }
@@ -132,111 +78,67 @@ export function Dashboard() {
   return (
     <div className="p-8 animate-fade-in">
       <div className="mb-8">
-        <h1 className="text-4xl font-bold mb-2 text-white">Панель мониторинга</h1>
-        <p className="text-slate-400">Обзор всех сервисов инфраструктуры</p>
+        <h1 className="text-3xl font-bold text-text-primary">Главный дашборд</h1>
+        <p className="text-text-secondary mt-1">Обзор всех систем мониторинга</p>
       </div>
 
-      {/* Dr.Web сводка */}
-      {drwebSummary && (
-        <div className="card p-6 mb-8">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-2xl font-bold text-white">Dr.Web Security Space</h2>
+      {/* Dr.Web Card */}
+      {server && (
+        <div className="card p-6 mb-6">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-3">
+              <span className="text-3xl">🛡️</span>
+              <div>
+                <h2 className="text-xl font-bold text-text-primary">Dr.Web Security Space</h2>
+                <p className="text-sm text-text-muted">{server.hostname} • v{server.version}</p>
+              </div>
+            </div>
             <button
               onClick={() => navigate('/drweb')}
-              className="px-4 py-2 bg-indigo-500 hover:bg-indigo-600 text-white rounded-lg font-medium transition-all"
+              className="px-4 py-2 bg-accent hover:bg-blue-600 text-white rounded-lg font-medium transition-all"
             >
               Подробнее →
             </button>
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-            <div className="bg-slate-800/50 rounded-xl p-4">
-              <div className="text-slate-400 text-sm mb-1">Всего станций</div>
-              <div className="text-2xl font-bold text-white">{drwebSummary.total_devices}</div>
-            </div>
-            <div className="bg-slate-800/50 rounded-xl p-4">
-              <div className="text-slate-400 text-sm mb-1">Защищено</div>
-              <div className="text-2xl font-bold text-emerald-400">{drwebSummary.protected}</div>
-            </div>
-            <div className="bg-slate-800/50 rounded-xl p-4">
-              <div className="text-slate-400 text-sm mb-1">Внимание</div>
-              <div className="text-2xl font-bold text-amber-400">{drwebSummary.warnings}</div>
-            </div>
-            <div className="bg-slate-800/50 rounded-xl p-4">
-              <div className="text-slate-400 text-sm mb-1">Критично</div>
-              <div className="text-2xl font-bold text-red-400">{drwebSummary.critical}</div>
-            </div>
-          </div>
 
-          {/* Дополнительные метрики */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="bg-slate-800/50 rounded-xl p-4">
-              <div className="text-slate-400 text-sm mb-1">Угрозы за 24ч</div>
-              <div className="text-2xl font-bold text-orange-400">{totalInfections}</div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="bg-bg-tertiary rounded-lg p-4">
+              <div className="text-text-muted text-sm mb-1">Всего станций</div>
+              <div className="text-2xl font-bold text-text-primary">{server.stations_summary.total}</div>
             </div>
-            <div className="bg-slate-800/50 rounded-xl p-4">
-              <div className="text-slate-400 text-sm mb-1">В карантине</div>
-              <div className="text-2xl font-bold text-purple-400">{quarantineCount}</div>
+            <div className="bg-bg-tertiary rounded-lg p-4">
+              <div className="text-text-muted text-sm mb-1">Онлайн</div>
+              <div className="text-2xl font-bold text-success">{server.stations_summary.online}</div>
             </div>
-            <div className="bg-slate-800/50 rounded-xl p-4">
-              <div className="text-slate-400 text-sm mb-1">Общий статус</div>
-              <div className={`text-2xl font-bold ${
-                drwebSummary.critical > 0 ? 'text-red-400' :
-                drwebSummary.warnings > 0 ? 'text-amber-400' : 'text-emerald-400'
-              }`}>
-                {drwebSummary.critical > 0 ? '🚨 Критично' :
-                 drwebSummary.warnings > 0 ? '⚠️ Внимание' : '✅ Норма'}
-              </div>
+            <div className="bg-bg-tertiary rounded-lg p-4">
+              <div className="text-text-muted text-sm mb-1">Оффлайн</div>
+              <div className="text-2xl font-bold text-danger">{server.stations_summary.offline}</div>
+            </div>
+            <div className="bg-bg-tertiary rounded-lg p-4">
+              <div className="text-text-muted text-sm mb-1">Uptime сервера</div>
+              <div className="text-2xl font-bold text-text-primary">{formatUptime(server.uptime)}</div>
             </div>
           </div>
         </div>
       )}
 
-      {/* Топ угроз */}
+      {/* Top Viruses */}
       {topViruses.length > 0 && (
-        <div className="card p-6 mb-8">
-          <h2 className="text-xl font-bold text-white mb-4">Топ угроз за период</h2>
-          <div className="space-y-3">
-            {topViruses.map((virus, idx) => (
-              <div key={idx} className="flex items-center justify-between p-3 bg-slate-800/50 rounded-lg">
+        <div className="card p-6">
+          <h2 className="text-xl font-bold text-text-primary mb-4">Топ угроз</h2>
+          <div className="space-y-2">
+            {topViruses.map(([name, count], idx) => (
+              <div key={idx} className="flex items-center justify-between p-3 bg-bg-tertiary rounded-lg">
                 <div className="flex items-center gap-3">
-                  <span className="text-red-400 font-bold">#{idx + 1}</span>
-                  <span className="text-white">{virus.name}</span>
+                  <span className="text-danger font-bold">#{idx + 1}</span>
+                  <span className="text-text-primary">{name}</span>
                 </div>
-                <span className="text-red-400 font-bold">{virus.count}</span>
+                <span className="text-danger font-bold">{count}</span>
               </div>
             ))}
           </div>
         </div>
       )}
-      
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {services.map((service) => (
-          <div
-            key={service.id}
-            onClick={() => handleServiceClick(service.id)}
-            className={`card p-6 cursor-pointer bg-gradient-to-br ${getStatusGradient(service.status)}`}
-          >
-            <div className="flex items-start justify-between mb-4">
-              <div className="text-5xl">{service.icon}</div>
-              <div className={`badge ${getStatusBadge(service.status)}`}>
-                {getStatusText(service.status)}
-              </div>
-            </div>
-
-            <h2 className="text-2xl font-bold mb-2 text-white">{service.name}</h2>
-            <p className="text-slate-400 mb-6">{service.description}</p>
-
-            <div className="space-y-3">
-              {service.stats.map((stat, idx) => (
-                <div key={idx} className="flex justify-between items-center">
-                  <span className="text-slate-400 text-sm">{stat.label}</span>
-                  <span className={`text-xl font-bold ${stat.color}`}>{stat.value}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        ))}
-      </div>
     </div>
   );
 }

@@ -4,14 +4,14 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from apscheduler.schedulers.background import BackgroundScheduler
 from pathlib import Path
-import logging
+from datetime import datetime
+import re
 
-from drweb_client import DrWebClient, fetch_drweb_data, fetch_station_details, get_empty_data
+from logger import logger
+from drweb_client import DrWebClient
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
-
-app = FastAPI(title="Кибер Стратегия - Мониторинг")
+# === FASTAPI APP ===
+app = FastAPI(title="Cyber Monitor", version="3.0.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -21,187 +21,299 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Пути
+# === PATHS ===
 BASE_DIR = Path(__file__).resolve().parent.parent
 FRONTEND_DIR = BASE_DIR / "frontend"
 
-# Монтируем статические файлы (CSS, JS, assets)
 assets_dir = FRONTEND_DIR / "assets"
 if assets_dir.exists():
     app.mount("/assets", StaticFiles(directory=str(assets_dir)), name="assets")
 
-# ==============================================================================
-# НАСТРОЙКИ DR.WEB (ЗАПОЛНИ СВОИМИ ДАННЫМИ!)
-# ==============================================================================
-DRWEB_URL = "https://10.4.0.115:9081"  # <-- ТВОЙ IP/ПОРТ
-DRWEB_USER = "admin.test"             # <-- ТВОЙ ЛОГИН
-DRWEB_PASS = "test123"                # <-- ТВОЙ ПАРОЛЬ
-DRWEB_VERIFY_SSL = False
+# === DR.WEB CONNECTION ===
+DRWEB_URL = "https://10.4.0.115:9081"
+DRWEB_USER = "admin.test"
+DRWEB_PASS = "test123"
 
-drweb_client = DrWebClient(DRWEB_URL, DRWEB_USER, DRWEB_PASS, DRWEB_VERIFY_SSL)
+drweb = DrWebClient(DRWEB_URL, DRWEB_USER, DRWEB_PASS, verify_ssl=False)
 
-# ЕДИНЫЙ ИСТОЧНИК ПРАВДЫ ЗДЕСЬ
-cached_data = get_empty_data()
+# === CACHE ===
+cache = {
+    "server_info": None,
+    "server_stats": None,
+    "stations": [],
+    "station_details": {},
+    "last_update": None
+}
+
+
+def extract_ip(addr: str) -> str:
+    """Извлекает IP из адреса типа ssl://10.15.0.10:29974"""
+    if not addr:
+        return "N/A"
+    match = re.search(r'://([^:]+)', addr)
+    return match.group(1) if match else "N/A"
+
 
 def update_cache():
-    global cached_data
-    new_data = fetch_drweb_data(drweb_client)
-    if new_data:
-        cached_data = new_data
+    """Обновление кэша данных"""
+    logger.info("Обновление кэша данных...")
+    
+    try:
+        # Сервер
+        server_info = drweb.get_server_info()
+        if server_info and server_info.get("head", {}).get("status"):
+            cache["server_info"] = server_info.get("data", {})
+            logger.info("✓ Сервер: данные получены")
+        
+        # Статистика сервера
+        server_stats = drweb.get_server_statistics()
+        if server_stats and server_stats.get("head", {}).get("status"):
+            cache["server_stats"] = server_stats.get("data", {})
+            logger.info("✓ Статистика сервера: получена")
+        
+        # Станции
+        stations = []
+        for state in ["online", "offline", "with_update_errors"]:
+            result = drweb.get_stations_by_state(state)
+            if result and result.get("head", {}).get("status"):
+                station_list = result.get("data", {}).get("stations", [])
+                for s in station_list:
+                    stations.append({
+                        "id": s.get("id", ""),
+                        "name": s.get("name", "Unknown"),
+                        "status": state,
+                        "last_seen_time": s.get("last_seen_time", 0),
+                        "last_seen_addr": s.get("last_seen_addr", ""),
+                        "os_name": s.get("os_name", "Unknown"),
+                        "ip": extract_ip(s.get("last_seen_addr", ""))
+                    })
+        cache["stations"] = stations
+        logger.info(f"✓ Станции: получено {len(stations)}")
+        
+        cache["last_update"] = datetime.now().isoformat()
+        logger.info(f"✓ Кэш обновлён успешно")
+        
+    except Exception as e:
+        logger.error(f"Ошибка обновления кэша: {e}")
 
-# Запускаем фоновый опрос каждые 30 секунд
+
+# === SCHEDULER ===
 scheduler = BackgroundScheduler()
-scheduler.add_job(func=update_cache, trigger="interval", seconds=30)
+scheduler.add_job(update_cache, 'interval', seconds=30)
 scheduler.start()
-logger.info("🔄 Фоновый опрос Dr.Web запущен (интервал 30 сек)")
+logger.info("Планировщик запущен (интервал 30 сек)")
 
-# Первичное заполнение при старте
+# Первичное обновление
 update_cache()
 
-@app.get("/api/status")
-async def get_status():
-    return cached_data
+
+# === API ENDPOINTS ===
+
+@app.get("/api/server")
+async def api_server():
+    """Информация о сервере"""
+    if not cache["server_info"]:
+        return {"error": "Данные недоступны"}
+    
+    data = cache["server_info"]
+    server = data.get("server", {})
+    stations = data.get("stations", {})
+    
+    return {
+        "hostname": server.get("hostname", "Unknown"),
+        "version": server.get("version", "Unknown"),
+        "uptime": server.get("uptime", 0),
+        "os": server.get("os", "Unknown"),
+        "platform": server.get("platform", "Unknown"),
+        "memory": server.get("memory", {}),
+        "filesystem": server.get("filesystem", {}),
+        "stations_summary": {
+            "total": stations.get("total", 0),
+            "online": stations.get("online", 0),
+            "offline": stations.get("offline", 0),
+            "with_update_errors": stations.get("with_update_errors", 0),
+            "unactivated": stations.get("unactivated", 0),
+            "new": stations.get("new", 0)
+        },
+        "last_update": cache["last_update"]
+    }
 
 
-@app.get("/api/dashboard")
-async def get_dashboard():
-    """Возвращает сводку по всем сервисам для главной страницы"""
-    services = []
-    
-    # Dr.Web
-    if cached_data and cached_data.get("summary"):
-        summary = cached_data["summary"]
-        drweb_status = "online" if summary.get("critical", 0) == 0 else (
-            "degraded" if summary.get("warnings", 0) > 0 else "offline"
-        )
-        services.append({
-            "id": "drweb",
-            "name": "Dr.Web",
-            "icon": "🛡️",
-            "status": drweb_status,
-            "description": "Антивирусная защита",
-            "stats": [
-                {"label": "Защищено", "value": summary.get("protected", 0), "color": "text-green-400"},
-                {"label": "Внимание", "value": summary.get("warnings", 0), "color": "text-yellow-400"},
-                {"label": "Критично", "value": summary.get("critical", 0), "color": "text-red-400"},
-            ]
-        })
-    
-    # Bitrix24 (заглушка)
-    services.append({
-        "id": "bitrix24",
-        "name": "Bitrix24",
-        "icon": "💼",
-        "status": "online",
-        "description": "CRM и бизнес-процессы",
-        "stats": [
-            {"label": "Активных сделок", "value": "—", "color": "text-cyber-gray"},
-            {"label": "Задач в работе", "value": "—", "color": "text-cyber-gray"},
-        ]
-    })
-    
-    # Почта (заглушка)
-    services.append({
-        "id": "mail",
-        "name": "Почта",
-        "icon": "📧",
-        "status": "online",
-        "description": "Почтовый сервер",
-        "stats": [
-            {"label": "Писем сегодня", "value": "—", "color": "text-cyber-gray"},
-            {"label": "В очереди", "value": "—", "color": "text-cyber-gray"},
-        ]
-    })
-    
-    return {"services": services}
+@app.get("/api/stations")
+async def api_stations():
+    """Список всех станций"""
+    return {
+        "stations": cache["stations"],
+        "count": len(cache["stations"]),
+        "last_update": cache["last_update"]
+    }
 
 
 @app.get("/api/station/{station_id}")
-async def get_station_detail(station_id: str):
-    """Получает детальную информацию о конкретной станции"""
-    details = fetch_station_details(drweb_client, station_id)
-    if not details:
-        raise HTTPException(status_code=404, detail=f"Station {station_id} not found")
-    return details
+async def api_station_detail(station_id: str):
+    """Детальная информация о станции"""
+    # Проверяем кэш
+    if station_id in cache["station_details"]:
+        return cache["station_details"][station_id]
+    
+    # Запрашиваем детали
+    info = drweb.get_station_info(station_id)
+    stats = drweb.get_station_statistics(station_id)
+    
+    if not info or not info.get("head", {}).get("status"):
+        raise HTTPException(status_code=404, detail="Станция не найдена")
+    
+    # Парсим данные
+    station_data = info.get("data", {})
+    station_list = station_data.get("list", [])
+    
+    if not station_list:
+        raise HTTPException(status_code=404, detail="Данные станции недоступны")
+    
+    station = station_list[0]
+    
+    # Извлекаем угрозы
+    threats = []
+    if stats and stats.get("head", {}).get("status"):
+        stats_data = stats.get("data", {})
+        stations_stats = stats_data.get("stations", {})
+        stats_list = stations_stats.get("list", [])
+        
+        if stats_list:
+            station_stats = stats_list[0]
+            viruses_info = station_stats.get("viruses_info", {})
+            
+            for virus_name, virus_data in viruses_info.items():
+                if isinstance(virus_data, dict):
+                    # Определяем тип
+                    name_lower = virus_name.lower()
+                    virus_type = "unknown"
+                    if "trojan" in name_lower:
+                        virus_type = "trojan"
+                    elif "virus" in name_lower or "win32" in name_lower:
+                        virus_type = "virus"
+                    elif "worm" in name_lower:
+                        virus_type = "worm"
+                    elif "adware" in name_lower:
+                        virus_type = "adware"
+                    elif "spyware" in name_lower:
+                        virus_type = "spyware"
+                    elif "riskware" in name_lower:
+                        virus_type = "riskware"
+                    elif "dialer" in name_lower:
+                        virus_type = "dialer"
+                    elif "exploit" in name_lower:
+                        virus_type = "exploit"
+                    
+                    threats.append({
+                        "name": virus_name,
+                        "type": virus_type,
+                        "count": virus_data.get("count", 1),
+                        "originator": virus_data.get("originator", 0),
+                        "treatment": virus_data.get("treatment", 0)
+                    })
+    
+    result = {
+        "id": station.get("id", ""),
+        "name": station.get("name", "Unknown"),
+        "ip": extract_ip(station.get("last_seen_addr", "")),
+        "os": station.get("os_name", "Unknown"),
+        "last_seen_time": station.get("last_seen_time", 0),
+        "department": station.get("department", "N/A"),
+        "organization": station.get("organization", "N/A"),
+        "city": station.get("city", "N/A"),
+        "groups": [g.get("name", "") for g in station.get("group_membership", [])],
+        "engine_version": "N/A",
+        "current_user": "N/A",
+        "last_bases_update": 0,
+        "threats": threats,
+        "running_components": [
+            {"name": rc.get("name", ""), "user": rc.get("user", "")}
+            for rc in station.get("running_components", [])
+        ]
+    }
+    
+    # Кэшируем
+    cache["station_details"][station_id] = result
+    
+    return result
 
 
 @app.get("/api/infections-chart")
-async def get_infections_chart(station_id: str = None, from_date: str = None, till_date: str = None):
-    """Получает статистику срабатываний по времени"""
-    from drweb_client import get_infections_chart
-    data = get_infections_chart(drweb_client, station_id, from_date, till_date)
-    if not data:
-        return {"data": []}
-    return data
+async def api_infections_chart():
+    """График инфекций"""
+    data = drweb.get_infections_chart()
+    if not data or not data.get("head", {}).get("status"):
+        return {"chart": []}
+    
+    return {"chart": data.get("data", {}).get("chart", [])}
 
 
 @app.get("/api/hips-events")
-async def get_hips_events(station_id: str = None, limit: int = 50):
-    """Получает события Превентивной защиты (HIPS)"""
-    from drweb_client import get_hips_events
-    data = get_hips_events(drweb_client, station_id, limit)
-    if not data:
-        return {"data": []}
-    return data
+async def api_hips_events(limit: int = 50):
+    """События HIPS"""
+    data = drweb.get_hips_events(limit=limit)
+    if not data or not data.get("head", {}).get("status"):
+        return {"events": []}
+    
+    return {"events": data.get("data", {}).get("events", [])}
 
 
 @app.get("/api/quarantine")
-async def get_quarantine(station_id: str = None):
-    """Получает объекты в карантине"""
-    from drweb_client import get_quarantine_objects
-    data = get_quarantine_objects(drweb_client, station_id)
-    if not data:
-        return {"data": []}
-    return data
-
-
-@app.get("/api/server/statistics")
-async def get_server_statistics(from_date: str = None, till_date: str = None):
-    """Получает статистику сервера по обнаруженным угрозам"""
-    from drweb_client import get_server_statistics
-    data = get_server_statistics(drweb_client, from_date, till_date)
-    if not data:
-        return {"data": {}}
-    return data
+async def api_quarantine():
+    """Объекты в карантине"""
+    data = drweb.get_quarantine_objects()
+    if not data or not data.get("head", {}).get("status"):
+        return {"objects": []}
+    
+    return {"objects": data.get("data", {}).get("objects", [])}
 
 
 @app.get("/api/licenses")
-async def get_licenses():
-    """Получает информацию о лицензионных ключах"""
-    from drweb_client import get_license_keys
-    data = get_license_keys(drweb_client)
-    if not data:
-        return {"data": []}
-    return data
+async def api_licenses():
+    """Лицензионные ключи"""
+    data = drweb.get_license_keys()
+    if not data or not data.get("head", {}).get("status"):
+        return {"keys": []}
+    
+    return {"keys": data.get("data", {}).get("keys", [])}
 
 
 @app.get("/api/repository")
-async def get_repository():
-    """Получает состояние репозитория"""
-    from drweb_client import get_repository_status
-    data = get_repository_status(drweb_client)
-    if not data:
-        return {"data": {}}
-    return data
+async def api_repository():
+    """Статус репозитория"""
+    data = drweb.get_repository_status()
+    if not data or not data.get("head", {}).get("status"):
+        return {"status": "unknown"}
+    
+    return data.get("data", {})
 
+
+@app.get("/api/server-statistics")
+async def api_server_statistics():
+    """Статистика сервера"""
+    if not cache["server_stats"]:
+        return {"data": {}}
+    
+    return {"data": cache["server_stats"]}
+
+
+# === FRONTEND ===
 
 @app.get("/")
 async def root():
-    """Главная страница"""
     return FileResponse(str(FRONTEND_DIR / "index.html"))
 
 
 @app.get("/{full_path:path}")
 async def catch_all(full_path: str):
-    """Отдаём React SPA — все маршруты ведут на index.html"""
-    # Если запрашивается файл из assets — отдаём его
     file_path = FRONTEND_DIR / full_path
     if full_path and file_path.exists() and file_path.is_file():
         return FileResponse(str(file_path))
-    # Иначе отдаём index.html (SPA routing)
     return FileResponse(str(FRONTEND_DIR / "index.html"))
 
 
 if __name__ == "__main__":
     import uvicorn
+    logger.info("Запуск сервера на http://0.0.0.0:8001")
     uvicorn.run(app, host="0.0.0.0", port=8001)

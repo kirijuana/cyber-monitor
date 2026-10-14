@@ -3,48 +3,43 @@ import { NavLink } from 'react-router-dom';
 const menuItems = [
   { path: '/', icon: '📊', label: 'Дашборд' },
   { path: '/drweb', icon: '🛡️', label: 'Dr.Web' },
-  { path: '/bitrix24', icon: '💼', label: 'Bitrix24' },
-  { path: '/mail', icon: '📧', label: 'Почта' },
-  { path: '/services', icon: '⚙️', label: 'Сервисы' },
 ];
 
 export function Sidebar() {
   return (
-    <aside className="w-64 glass border-r border-slate-700/50 flex flex-col">
-      <div className="p-6 border-b border-slate-700/50">
-        <h1 className="text-2xl font-bold bg-gradient-to-r from-indigo-400 to-purple-400 bg-clip-text text-transparent">
-          Cyber Monitor
-        </h1>
-        <p className="text-slate-400 text-sm mt-1">Мониторинг инфраструктуры</p>
+    <aside className="w-64 bg-bg-secondary border-r border-border flex flex-col">
+      <div className="p-6 border-b border-border">
+        <h1 className="text-xl font-bold text-text-primary">Cyber Monitor</h1>
+        <p className="text-xs text-text-muted mt-1">v3.0.0</p>
       </div>
 
       <nav className="flex-1 p-4">
-        <ul className="space-y-2">
+        <ul className="space-y-1">
           {menuItems.map((item) => (
             <li key={item.path}>
               <NavLink
                 to={item.path}
                 end={item.path === '/'}
                 className={({ isActive }) =>
-                  `flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
+                  `flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${
                     isActive
-                      ? 'gradient-primary text-white shadow-lg shadow-indigo-500/30'
-                      : 'text-slate-400 hover:bg-slate-800/50 hover:text-white'
+                      ? 'bg-accent text-white'
+                      : 'text-text-secondary hover:bg-bg-tertiary hover:text-text-primary'
                   }`
                 }
               >
-                <span className="text-2xl">{item.icon}</span>
-                <span className="font-semibold">{item.label}</span>
+                <span className="text-xl">{item.icon}</span>
+                <span className="font-medium">{item.label}</span>
               </NavLink>
             </li>
           ))}
         </ul>
       </nav>
 
-      <div className="p-4 border-t border-slate-700/50">
-        <div className="flex items-center gap-3 px-4 py-2">
-          <div className="w-3 h-3 rounded-full bg-emerald-500 animate-pulse"></div>
-          <span className="text-slate-400 text-sm">Система активна</span>
+      <div className="p-4 border-t border-border">
+        <div className="flex items-center gap-2 px-4 py-2">
+          <div className="status-dot status-online"></div>
+          <span className="text-text-muted text-sm">Система активна</span>
         </div>
       </div>
     </aside>
