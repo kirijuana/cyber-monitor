@@ -179,6 +179,98 @@ def get_server_info_extended(client: DrWebClient):
         return None
 
 
+def get_infections_chart(client: DrWebClient, station_id: str = None, from_date: str = None, till_date: str = None):
+    """Получает статистику срабатываний по времени"""
+    url = f"{client.base_url}/api/stations/infections-chart.ds"
+    params = {"format": "json"}
+    if station_id:
+        params["id"] = station_id
+    if from_date:
+        params["from"] = from_date
+    if till_date:
+        params["till"] = till_date
+    try:
+        response = requests.get(url, auth=client.auth, params=params, verify=client.verify_ssl, timeout=15)
+        response.raise_for_status()
+        return response.json()
+    except Exception as e:
+        logger.error(f"Ошибка Dr.Web (infections-chart): {e}")
+        return None
+
+
+def get_hips_events(client: DrWebClient, station_id: str = None, limit: int = 50):
+    """Получает события Превентивной защиты (HIPS)"""
+    url = f"{client.base_url}/api/stations/hips-events.ds"
+    params = {"format": "json", "limit": limit}
+    if station_id:
+        params["id"] = station_id
+    try:
+        response = requests.get(url, auth=client.auth, params=params, verify=client.verify_ssl, timeout=15)
+        response.raise_for_status()
+        return response.json()
+    except Exception as e:
+        logger.error(f"Ошибка Dr.Web (hips-events): {e}")
+        return None
+
+
+def get_quarantine_objects(client: DrWebClient, station_id: str = None):
+    """Получает объекты в карантине"""
+    url = f"{client.base_url}/api/stations/quarantine-objects.ds"
+    params = {"format": "json"}
+    if station_id:
+        params["id"] = station_id
+    try:
+        response = requests.get(url, auth=client.auth, params=params, verify=client.verify_ssl, timeout=15)
+        response.raise_for_status()
+        return response.json()
+    except Exception as e:
+        logger.error(f"Ошибка Dr.Web (quarantine): {e}")
+        return None
+
+
+def get_server_statistics(client: DrWebClient, from_date: str = None, till_date: str = None):
+    """Получает статистику сервера по обнаруженным угрозам"""
+    url = f"{client.base_url}/api/server/statistics.ds"
+    params = {"format": "json", "top-viruses": "yes", "virtop": "20"}
+    if from_date:
+        params["from"] = from_date
+    if till_date:
+        params["till"] = till_date
+    try:
+        response = requests.get(url, auth=client.auth, params=params, verify=client.verify_ssl, timeout=15)
+        response.raise_for_status()
+        return response.json()
+    except Exception as e:
+        logger.error(f"Ошибка Dr.Web (server statistics): {e}")
+        return None
+
+
+def get_license_keys(client: DrWebClient):
+    """Получает информацию о лицензионных ключах"""
+    url = f"{client.base_url}/api/server/keys.ds"
+    params = {"format": "json"}
+    try:
+        response = requests.get(url, auth=client.auth, params=params, verify=client.verify_ssl, timeout=15)
+        response.raise_for_status()
+        return response.json()
+    except Exception as e:
+        logger.error(f"Ошибка Dr.Web (license keys): {e}")
+        return None
+
+
+def get_repository_status(client: DrWebClient):
+    """Получает состояние репозитория"""
+    url = f"{client.base_url}/api/server/repository-status.ds"
+    params = {"format": "json"}
+    try:
+        response = requests.get(url, auth=client.auth, params=params, verify=client.verify_ssl, timeout=15)
+        response.raise_for_status()
+        return response.json()
+    except Exception as e:
+        logger.error(f"Ошибка Dr.Web (repository-status): {e}")
+        return None
+
+
 def fetch_station_details(client: DrWebClient, station_id: str):
     """Получает детальную информацию о станции и форматирует её"""
     info = client.get_station_info(station_id)

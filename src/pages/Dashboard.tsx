@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 interface ServiceCard {
   id: string;
@@ -21,10 +22,27 @@ interface DrWebSummary {
   critical: number;
 }
 
+interface ServerStats {
+  data?: {
+    infections?: {
+      total?: number;
+      viruses?: Array<{ name: string; count: number }>;
+    };
+  };
+}
+
+interface QuarantineData {
+  data?: {
+    objects?: Array<any>;
+  };
+}
+
 export function Dashboard() {
   const navigate = useNavigate();
   const [services, setServices] = useState<ServiceCard[]>([]);
-  const [drwebSummary, setDrwebSummary] = useState<DrWebSummary | null>(null);
+  const [drwebSummary, setDrWebSummary] = useState<DrWebSummary | null>(null);
+  const [serverStats, setServerStats] = useState<ServerStats>({});
+  const [quarantineData, setQuarantineData] = useState<QuarantineData>({});
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -35,18 +53,31 @@ export function Dashboard() {
 
   const fetchDashboardData = async () => {
     try {
-      // Загружаем данные дашборда
-      const dashboardResponse = await fetch('/api/dashboard');
-      if (dashboardResponse.ok) {
-        const dashboardData = await dashboardResponse.json();
+      const [dashboardRes, statusRes, statsRes, quarantineRes] = await Promise.all([
+        fetch('/api/dashboard'),
+        fetch('/api/status'),
+        fetch('/api/server/statistics'),
+        fetch('/api/quarantine'),
+      ]);
+
+      if (dashboardRes.ok) {
+        const dashboardData = await dashboardRes.json();
         setServices(dashboardData.services);
       }
 
-      // Загружаем сводку Dr.Web
-      const statusResponse = await fetch('/api/status');
-      if (statusResponse.ok) {
-        const statusData = await statusResponse.json();
-        setDrwebSummary(statusData.summary);
+      if (statusRes.ok) {
+        const statusData = await statusRes.json();
+        setDrWebSummary(statusData.summary);
+      }
+
+      if (statsRes.ok) {
+        const statsData = await statsRes.json();
+        setServerStats(statsData);
+      }
+
+      if (quarantineRes.ok) {
+        const quarantineDataRes = await quarantineRes.json();
+        setQuarantineData(quarantineDataRes);
       }
     } catch (error) {
       console.error('Ошибка загрузки dashboard:', error);
@@ -86,6 +117,10 @@ export function Dashboard() {
     }
   };
 
+  const totalInfections = serverStats.data?.infections?.total || 0;
+  const quarantineCount = quarantineData.data?.objects?.length || 0;
+  const topViruses = serverStats.data?.infections?.viruses?.slice(0, 5) || [];
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-full">
@@ -113,7 +148,7 @@ export function Dashboard() {
               Подробнее →
             </button>
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
             <div className="bg-slate-800/50 rounded-xl p-4">
               <div className="text-slate-400 text-sm mb-1">Всего станций</div>
               <div className="text-2xl font-bold text-white">{drwebSummary.total_devices}</div>
@@ -130,6 +165,46 @@ export function Dashboard() {
               <div className="text-slate-400 text-sm mb-1">Критично</div>
               <div className="text-2xl font-bold text-red-400">{drwebSummary.critical}</div>
             </div>
+          </div>
+
+          {/* Дополнительные метрики */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="bg-slate-800/50 rounded-xl p-4">
+              <div className="text-slate-400 text-sm mb-1">Угрозы за 24ч</div>
+              <div className="text-2xl font-bold text-orange-400">{totalInfections}</div>
+            </div>
+            <div className="bg-slate-800/50 rounded-xl p-4">
+              <div className="text-slate-400 text-sm mb-1">В карантине</div>
+              <div className="text-2xl font-bold text-purple-400">{quarantineCount}</div>
+            </div>
+            <div className="bg-slate-800/50 rounded-xl p-4">
+              <div className="text-slate-400 text-sm mb-1">Общий статус</div>
+              <div className={`text-2xl font-bold ${
+                drwebSummary.critical > 0 ? 'text-red-400' :
+                drwebSummary.warnings > 0 ? 'text-amber-400' : 'text-emerald-400'
+              }`}>
+                {drwebSummary.critical > 0 ? '🚨 Критично' :
+                 drwebSummary.warnings > 0 ? '⚠️ Внимание' : '✅ Норма'}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Топ угроз */}
+      {topViruses.length > 0 && (
+        <div className="card p-6 mb-8">
+          <h2 className="text-xl font-bold text-white mb-4">Топ угроз за период</h2>
+          <div className="space-y-3">
+            {topViruses.map((virus, idx) => (
+              <div key={idx} className="flex items-center justify-between p-3 bg-slate-800/50 rounded-lg">
+                <div className="flex items-center gap-3">
+                  <span className="text-red-400 font-bold">#{idx + 1}</span>
+                  <span className="text-white">{virus.name}</span>
+                </div>
+                <span className="text-red-400 font-bold">{virus.count}</span>
+              </div>
+            ))}
           </div>
         </div>
       )}

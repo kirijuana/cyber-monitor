@@ -125,6 +125,66 @@ async def get_station_detail(station_id: str):
     return details
 
 
+@app.get("/api/infections-chart")
+async def get_infections_chart(station_id: str = None, from_date: str = None, till_date: str = None):
+    """Получает статистику срабатываний по времени"""
+    from drweb_client import get_infections_chart
+    data = get_infections_chart(drweb_client, station_id, from_date, till_date)
+    if not data:
+        return {"data": []}
+    return data
+
+
+@app.get("/api/hips-events")
+async def get_hips_events(station_id: str = None, limit: int = 50):
+    """Получает события Превентивной защиты (HIPS)"""
+    from drweb_client import get_hips_events
+    data = get_hips_events(drweb_client, station_id, limit)
+    if not data:
+        return {"data": []}
+    return data
+
+
+@app.get("/api/quarantine")
+async def get_quarantine(station_id: str = None):
+    """Получает объекты в карантине"""
+    from drweb_client import get_quarantine_objects
+    data = get_quarantine_objects(drweb_client, station_id)
+    if not data:
+        return {"data": []}
+    return data
+
+
+@app.get("/api/server/statistics")
+async def get_server_statistics(from_date: str = None, till_date: str = None):
+    """Получает статистику сервера по обнаруженным угрозам"""
+    from drweb_client import get_server_statistics
+    data = get_server_statistics(drweb_client, from_date, till_date)
+    if not data:
+        return {"data": {}}
+    return data
+
+
+@app.get("/api/licenses")
+async def get_licenses():
+    """Получает информацию о лицензионных ключах"""
+    from drweb_client import get_license_keys
+    data = get_license_keys(drweb_client)
+    if not data:
+        return {"data": []}
+    return data
+
+
+@app.get("/api/repository")
+async def get_repository():
+    """Получает состояние репозитория"""
+    from drweb_client import get_repository_status
+    data = get_repository_status(drweb_client)
+    if not data:
+        return {"data": {}}
+    return data
+
+
 @app.get("/")
 async def root():
     """Главная страница"""
